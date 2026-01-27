@@ -1,0 +1,76 @@
+
+
+
+
+
+
+
+
+
+
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: medicore_db
+    environment:
+      POSTGRES_USER: medicore_user
+      POSTGRES_PASSWORD: medicore_secure_password_2024
+      POSTGRES_DB: medicore_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - medicore_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicore_user -d medicore_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: medicore_backend
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://medicore_user:medicore_secure_password_2024@postgres:5432/medicore_db
+      JWT_SECRET: medicore_jwt_secret_key_2024_very_secure
+      JWT_EXPIRES_IN: 7d
+      PORT: 5000
+    ports:
+      - "5001:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - medicore_network
+    restart: unless-stopped
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: medicore_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - medicore_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  medicore_network:
+    driver: bridge

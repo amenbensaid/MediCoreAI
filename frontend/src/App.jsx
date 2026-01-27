@@ -1,0 +1,88 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuthStore } from './stores/authStore';
+
+// Layouts
+import AuthLayout from './layouts/AuthLayout';
+import DashboardLayout from './layouts/DashboardLayout';
+
+// Auth Pages
+import Login from './pages/auth/Login';
+import Register from './pages/auth/Register';
+
+// Dashboard Pages
+import Dashboard from './pages/Dashboard';
+import Patients from './pages/Patients';
+import PatientDetail from './pages/PatientDetail';
+import Appointments from './pages/Appointments';
+import Calendar from './pages/Calendar';
+import Invoices from './pages/Invoices';
+import Analytics from './pages/Analytics';
+import Settings from './pages/Settings';
+import DentalModule from './pages/DentalModule';
+import AestheticModule from './pages/AestheticModule';
+import VeterinaryModule from './pages/VeterinaryModule';
+
+// Protected Route Component
+const ProtectedRoute = ({ children }) => {
+    const { isAuthenticated, isLoading } = useAuthStore();
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-900">
+                <div className="spinner" />
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return <Navigate to="/login" replace />;
+    }
+
+    return children;
+};
+
+// Public Route Component (redirect if already authenticated)
+const PublicRoute = ({ children }) => {
+    const { isAuthenticated } = useAuthStore();
+
+    if (isAuthenticated) {
+        return <Navigate to="/dashboard" replace />;
+    }
+
+    return children;
+};
+
+function App() {
+    return (
+        <Router>
+            <Routes>
+                {/* Public Routes */}
+                <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+                    <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+                </Route>
+
+                {/* Protected Routes */}
+                <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/patients" element={<Patients />} />
+                    <Route path="/patients/:id" element={<PatientDetail />} />
+                    <Route path="/appointments" element={<Appointments />} />
+                    <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/invoices" element={<Invoices />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/settings" element={<Settings />} />
+                    <Route path="/dental" element={<DentalModule />} />
+                    <Route path="/aesthetic" element={<AestheticModule />} />
+                    <Route path="/veterinary" element={<VeterinaryModule />} />
+                </Route>
+
+                {/* Default redirect */}
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+        </Router>
+    );
+}
+
+export default App;

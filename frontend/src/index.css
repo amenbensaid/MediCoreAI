@@ -1,0 +1,228 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Glass morphism */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.dark .glass {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient backgrounds */
+.gradient-primary {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+}
+
+.gradient-medical {
+  background: linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%);
+}
+
+.gradient-dark {
+  background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+}
+
+/* Animated gradient border */
+.gradient-border {
+  position: relative;
+  background: linear-gradient(135deg, #6366f1, #14b8a6);
+  padding: 2px;
+  border-radius: 12px;
+}
+
+.gradient-border > * {
+  background: white;
+  border-radius: 10px;
+}
+
+.dark .gradient-border > * {
+  background: #1e293b;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.dark .card-hover:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Button styles */
+.btn-primary {
+  @apply px-6 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white font-semibold rounded-xl
+         hover:from-primary-600 hover:to-primary-700 transition-all duration-300 shadow-lg hover:shadow-xl
+         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+}
+
+.btn-secondary {
+  @apply px-6 py-3 bg-white dark:bg-dark-800 text-gray-700 dark:text-gray-200 font-semibold rounded-xl
+         border border-gray-200 dark:border-dark-600 hover:bg-gray-50 dark:hover:bg-dark-700
+         transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+}
+
+.btn-medical {
+  @apply px-6 py-3 bg-gradient-to-r from-medical-500 to-medical-600 text-white font-semibold rounded-xl
+         hover:from-medical-600 hover:to-medical-700 transition-all duration-300 shadow-lg hover:shadow-xl;
+}
+
+/* Input styles */
+.input-field {
+  @apply w-full px-4 py-3 bg-white dark:bg-dark-800 border border-gray-200 dark:border-dark-600
+         rounded-xl text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500
+         focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
+         transition-all duration-300;
+}
+
+/* Stat card */
+.stat-card {
+  @apply p-6 bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700
+         hover:shadow-xl transition-all duration-300;
+}
+
+/* Sidebar link */
+.sidebar-link {
+  @apply flex items-center gap-3 px-4 py-3 text-gray-600 dark:text-gray-400 rounded-xl
+         hover:bg-primary-50 dark:hover:bg-dark-700 hover:text-primary-600 dark:hover:text-primary-400
+         transition-all duration-200;
+}
+
+.sidebar-link.active {
+  @apply bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium;
+}
+
+/* Table styles */
+.table-header {
+  @apply px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider;
+}
+
+.table-cell {
+  @apply px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100;
+}
+
+/* Status badges */
+.badge {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+}
+
+.badge-success {
+  @apply bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400;
+}
+
+.badge-warning {
+  @apply bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400;
+}
+
+.badge-danger {
+  @apply bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400;
+}
+
+.badge-info {
+  @apply bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400;
+}
+
+.badge-neutral {
+  @apply bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300;
+}
+
+/* Calendar event colors */
+.event-scheduled { background-color: #3b82f6; }
+.event-confirmed { background-color: #10b981; }
+.event-in-progress { background-color: #f59e0b; }
+.event-completed { background-color: #6b7280; }
+.event-cancelled { background-color: #ef4444; }
+.event-no-show { background-color: #dc2626; }
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Toast notifications */
+.toast {
+  @apply fixed bottom-4 right-4 px-6 py-4 rounded-xl shadow-2xl z-50 animate-slide-up;
+}
+
+.toast-success {
+  @apply bg-green-500 text-white;
+}
+
+.toast-error {
+  @apply bg-red-500 text-white;
+}
+
+.toast-info {
+  @apply bg-blue-500 text-white;
+}
+
+/* Modal overlay */
+.modal-overlay {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center;
+}
+
+.modal-content {
+  @apply bg-white dark:bg-dark-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 animate-slide-up;
+}
