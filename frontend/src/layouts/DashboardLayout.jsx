@@ -14,16 +14,23 @@ const DashboardLayout = () => {
         initializeTheme();
     }, []);
 
+    const isAdmin = user?.role === 'admin' || user?.clinicRole === 'admin';
+    const isDemoAdmin = user?.email === 'admin@medicore.ai';
+
     const navigation = [
         { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-        { name: 'Patients', href: '/patients', icon: UsersIcon },
+        ...(isDemoAdmin || user?.clinicType === 'veterinary' 
+            ? [{ name: 'Animaux', href: '/animals', icon: BugAntIcon }] 
+            : [{ name: 'Patients', href: '/patients', icon: UsersIcon }]),
+        ...(isDemoAdmin ? [{ name: 'Patients', href: '/patients', icon: UsersIcon }] : []),
         { name: 'Rendez-vous', href: '/appointments', icon: CalendarIcon },
         { name: 'Calendrier', href: '/calendar', icon: CalendarDaysIcon },
         { name: 'Facturation', href: '/invoices', icon: DocumentIcon },
         { name: 'Analytics', href: '/analytics', icon: ChartIcon },
-        { name: 'Dentaire', href: '/dental', icon: SparklesIcon },
-        { name: 'Esthétique', href: '/aesthetic', icon: CubeTransparentIcon },
-        { name: 'Vétérinaire', href: '/veterinary', icon: BugAntIcon },
+        ...(isDemoAdmin || user?.clinicType === 'dental' ? [{ name: 'Dentaire', href: '/dental', icon: SparklesIcon }] : []),
+        ...(isDemoAdmin || user?.clinicType === 'aesthetic' ? [{ name: 'Esthétique', href: '/aesthetic', icon: CubeTransparentIcon }] : []),
+        ...(isDemoAdmin || user?.clinicType === 'veterinary' ? [{ name: 'Vétérinaire', href: '/veterinary', icon: SparklesIcon }] : []),
+        ...(isAdmin ? [{ name: 'Demandes démo', href: '/admin/demo-requests', icon: ClipboardCheckIcon }] : []),
         { name: 'Paramètres', href: '/settings', icon: SettingsIcon },
     ];
 
@@ -217,6 +224,14 @@ const SettingsIcon = (props) => (
     <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+);
+
+const ClipboardCheckIcon = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3h6a1 1 0 011 1v2H8V4a1 1 0 011-1z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13l2 2 4-4" />
     </svg>
 );
 

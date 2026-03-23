@@ -78,6 +78,16 @@ export const useAuthStore = create(
                 if (token) {
                     api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
                 }
+            },
+
+            clearAuth: () => {
+                delete api.defaults.headers.common['Authorization'];
+                set({
+                    user: null,
+                    token: null,
+                    isAuthenticated: false,
+                    error: null
+                });
             }
         }),
         {
@@ -88,6 +98,25 @@ export const useAuthStore = create(
                 isAuthenticated: state.isAuthenticated
             }),
             onRehydrateStorage: () => (state) => {
+                // Validate token on rehydration
+                if (state?.token && state?.isAuthenticated) {
+                    // Check if token appears valid (basic check)
+                    // If not, clear it to avoid auth issues
+                    try {
+                        const parts = state.token.split('.');
+                        if (parts.length !== 3) {
+                            // Invalid JWT format
+                            state.user = null;
+                            state.token = null;
+                            state.isAuthenticated = false;
+                        }
+                    } catch (e) {
+                        // Clear on any error
+                        state.user = null;
+                        state.token = null;
+                        state.isAuthenticated = false;
+                    }
+                }
                 if (state?.token) {
                     api.defaults.headers.common['Authorization'] = `Bearer ${state.token}`;
                 }

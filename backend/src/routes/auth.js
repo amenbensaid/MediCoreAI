@@ -30,7 +30,7 @@ router.post('/register', [
         }
 
         // Hash password
-        const salt = await bcrypt.genSalt(12);
+        const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(password, salt);
 
         // Start transaction

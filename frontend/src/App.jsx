@@ -8,10 +8,12 @@ import DashboardLayout from './layouts/DashboardLayout';
 // Auth Pages
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
+import LandingPage from './pages/LandingPage';
 
 // Dashboard Pages
 import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
+import Animals from './pages/Animals';
 import PatientDetail from './pages/PatientDetail';
 import Appointments from './pages/Appointments';
 import Calendar from './pages/Calendar';
@@ -21,6 +23,7 @@ import Settings from './pages/Settings';
 import DentalModule from './pages/DentalModule';
 import AestheticModule from './pages/AestheticModule';
 import VeterinaryModule from './pages/VeterinaryModule';
+import DemoRequests from './pages/DemoRequests';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -53,10 +56,13 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+    const { isAuthenticated } = useAuthStore();
+    
     return (
         <Router>
             <Routes>
-                {/* Public Routes */}
+                {/* Public Routes - Landing page visible to everyone */}
+                <Route path="/" element={<LandingPage />} />
                 <Route element={<AuthLayout />}>
                     <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
                     <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
@@ -66,6 +72,7 @@ function App() {
                 <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/patients" element={<Patients />} />
+                    <Route path="/animals" element={<Animals />} />
                     <Route path="/patients/:id" element={<PatientDetail />} />
                     <Route path="/appointments" element={<Appointments />} />
                     <Route path="/calendar" element={<Calendar />} />
@@ -75,11 +82,11 @@ function App() {
                     <Route path="/dental" element={<DentalModule />} />
                     <Route path="/aesthetic" element={<AestheticModule />} />
                     <Route path="/veterinary" element={<VeterinaryModule />} />
+                    <Route path="/admin/demo-requests" element={<DemoRequests />} />
                 </Route>
 
                 {/* Default redirect */}
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </Router>
     );

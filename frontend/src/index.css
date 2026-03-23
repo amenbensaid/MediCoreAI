@@ -226,3 +226,157 @@ body {
 .modal-content {
   @apply bg-white dark:bg-dark-800 rounded-2xl shadow-2xl max-w-lg w-full mx-4 animate-slide-up;
 }
+
+/* Landing page advanced animations */
+.plan-card {
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+
+.plan-card-3d {
+  --rx: 0deg;
+  --ry: 0deg;
+  transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry));
+}
+
+.plan-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 70%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.7s ease;
+  pointer-events: none;
+}
+
+.plan-card:hover::before,
+.plan-card:focus-within::before {
+  left: 150%;
+}
+
+.plan-card:hover {
+  transform: perspective(1000px) rotateX(var(--rx)) rotateY(var(--ry)) translateY(-8px) scale(1.01);
+  box-shadow: 0 24px 60px rgba(8, 47, 73, 0.35);
+}
+
+.reveal-up {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal-up.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.marquee-track {
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  gap: 2rem;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.marquee-content {
+  flex-shrink: 0;
+  min-width: 100%;
+  display: flex;
+  justify-content: space-around;
+  gap: 1rem;
+  animation: marqueeLeft 22s linear infinite;
+}
+
+.marquee-pill {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.floating-chip {
+  animation: floatChip 4.5s ease-in-out infinite;
+}
+
+.floating-chip:nth-child(2n) {
+  animation-delay: 0.35s;
+}
+
+.floating-chip:nth-child(3n) {
+  animation-delay: 0.7s;
+}
+
+.animate-float-soft {
+  animation: floatSoft 6.5s ease-in-out infinite;
+}
+
+.animate-rise-in {
+  animation: riseIn 0.7s cubic-bezier(0.2, 0.65, 0.3, 1) both;
+}
+
+@keyframes riseIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes floatChip {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes marqueeLeft {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(calc(-100% - 2rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-chip,
+  .animate-float-soft,
+  .animate-rise-in,
+  .marquee-content {
+    animation: none !important;
+  }
+
+  .plan-card,
+  .plan-card:hover,
+  .plan-card-3d,
+  .reveal-up,
+  .reveal-up.is-visible {
+    transform: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+  }
+}
