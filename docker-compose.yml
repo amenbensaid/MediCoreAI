@@ -1,12 +1,3 @@
-
-
-
-
-
-
-
-
-
 version: '3.8'
 
 services:
@@ -21,8 +12,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/src/database/init.sql:/docker-entrypoint-initdb.d/init.sql
-    ports:
-      - "5432:5432"
     networks:
       - medicore_network
     healthcheck:
@@ -30,6 +19,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   # Backend API
   backend:
@@ -44,7 +34,7 @@ services:
       JWT_EXPIRES_IN: 7d
       PORT: 5000
     ports:
-      - "5001:5000"
+      - "5101:5000"   # ✅ changed port (no conflict)
     depends_on:
       postgres:
         condition: service_healthy
@@ -59,7 +49,7 @@ services:
       dockerfile: Dockerfile
     container_name: medicore_frontend
     ports:
-      - "3000:80"
+      - "3100:80"     # ✅ changed port (no conflict)
     depends_on:
       - backend
     networks:
