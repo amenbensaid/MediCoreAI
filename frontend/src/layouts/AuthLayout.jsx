@@ -44,8 +44,8 @@ const AuthLayout = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-white mb-1">Gestion Intelligente</h3>
-                                <p className="text-gray-400">Automatisez vos tâches administratives avec l'IA</p>
+                                <h3 className="text-xl font-semibold text-white mb-1">Smart Management</h3>
+                                <p className="text-gray-400">Automate your administrative tasks with AI</p>
                             </div>
                         </div>
 
@@ -56,8 +56,8 @@ const AuthLayout = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-white mb-1">Agenda Intelligent</h3>
-                                <p className="text-gray-400">Prédiction des no-shows et optimisation des RDV</p>
+                                <h3 className="text-xl font-semibold text-white mb-1">Smart Scheduling</h3>
+                                <p className="text-gray-400">No-show prediction and appointment optimization</p>
                             </div>
                         </div>
 
@@ -68,8 +68,8 @@ const AuthLayout = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-white mb-1">Analytics Avancés</h3>
-                                <p className="text-gray-400">Tableaux de bord BI pour piloter votre activité</p>
+                                <h3 className="text-xl font-semibold text-white mb-1">Advanced Analytics</h3>
+                                <p className="text-gray-400">BI dashboards to drive your practice</p>
                             </div>
                         </div>
                     </div>
@@ -78,15 +78,15 @@ const AuthLayout = () => {
                     <div className="mt-16 flex gap-12">
                         <div>
                             <p className="text-4xl font-bold text-white">10k+</p>
-                            <p className="text-gray-400">Praticiens</p>
+                            <p className="text-gray-400">Practitioners</p>
                         </div>
                         <div>
                             <p className="text-4xl font-bold text-white">2M+</p>
-                            <p className="text-gray-400">Patients gérés</p>
+                            <p className="text-gray-400">Patients managed</p>
                         </div>
                         <div>
                             <p className="text-4xl font-bold text-white">99.9%</p>
-                            <p className="text-gray-400">Disponibilité</p>
+                            <p className="text-gray-400">Uptime</p>
                         </div>
                     </div>
                 </div>

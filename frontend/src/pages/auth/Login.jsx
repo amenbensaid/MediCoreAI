@@ -27,8 +27,8 @@ const Login = () => {
 
             <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl p-8">
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Bienvenue</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Connectez-vous à votre espace</p>
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Sign in to your account</p>
                 </div>
 
                 {error && (
@@ -47,14 +47,14 @@ const Login = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="input-field"
-                            placeholder="vous@exemple.com"
+                            placeholder="you@example.com"
                             required
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Mot de passe
+                            Password
                         </label>
                         <div className="relative">
                             <input
@@ -87,10 +87,10 @@ const Login = () => {
                     <div className="flex items-center justify-between">
                         <label className="flex items-center">
                             <input type="checkbox" className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500" />
-                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Se souvenir de moi</span>
+                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember me</span>
                         </label>
                         <a href="#" className="text-sm text-primary-500 hover:text-primary-600 font-medium">
-                            Mot de passe oublié ?
+                            Forgot password?
                         </a>
                     </div>
 
@@ -102,26 +102,26 @@ const Login = () => {
                         {isLoading ? (
                             <>
                                 <div className="spinner" />
-                                Connexion...
+                                Signing in...
                             </>
                         ) : (
-                            'Se connecter'
+                            'Sign In'
                         )}
                     </button>
                 </form>
 
                 <div className="mt-8 text-center">
                     <p className="text-gray-500 dark:text-gray-400">
-                        Pas encore de compte ?{' '}
+                        Don't have an account?{' '}
                         <Link to="/register" className="text-primary-500 hover:text-primary-600 font-medium">
-                            S'inscrire
+                            Sign Up
                         </Link>
                     </p>
                 </div>
 
                 {/* Demo credentials */}
                 <div className="mt-6 p-4 bg-gray-50 dark:bg-dark-700 rounded-xl">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">Compte démo :</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">Demo account:</p>
                     <p className="text-sm text-center text-gray-700 dark:text-gray-300">
                         <span className="font-mono">admin@medicore.ai</span> / <span className="font-mono">Admin@123</span>
                     </p>

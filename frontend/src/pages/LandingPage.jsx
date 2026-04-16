@@ -180,6 +180,7 @@ const LandingPage = () => {
                     <div className="flex items-center gap-3">
                         <a href="#offres" className="hidden md:inline text-sm text-slate-300 hover:text-white transition-colors">Offres</a>
                         <a href="#demo" className="hidden md:inline text-sm text-slate-300 hover:text-white transition-colors">Réserver une démo</a>
+                        <Link to="/patient/login" className="hidden md:inline text-sm text-medical-300 hover:text-medical-200 transition-colors font-medium">Patient Portal</Link>
                         <Link to={isAuthenticated ? '/dashboard' : '/login'} className="btn-secondary !py-2 !px-4 text-sm">
                             {isAuthenticated ? 'Accéder au CRM' : 'Connexion'}
                         </Link>
@@ -210,8 +211,11 @@ const LandingPage = () => {
 
                         <div className="mt-8 flex flex-wrap gap-3">
                             <a href="#demo" className="btn-primary">Réserver une démo</a>
-                            <Link to={isAuthenticated ? '/dashboard' : '/register'} className="btn-secondary">
-                                {isAuthenticated ? 'Voir le tableau de bord' : 'Créer un compte'}
+                            <Link to="/patient/register" className="btn-secondary">
+                                🩺 Patient? Book Online
+                            </Link>
+                            <Link to={isAuthenticated ? '/dashboard' : '/register'} className="px-6 py-3 rounded-xl text-sm font-medium text-slate-300 border border-white/20 hover:bg-white/10 transition-colors">
+                                {isAuthenticated ? 'Voir le tableau de bord' : 'Staff Sign Up'}
                             </Link>
                         </div>
 

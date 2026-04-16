@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import api from '../services/api';
 
 const Calendar = () => {
@@ -37,7 +37,7 @@ const Calendar = () => {
                     </svg>
                 </button>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white capitalize">
-                    {format(currentMonth, 'MMMM yyyy', { locale: fr })}
+                    {format(currentMonth, 'MMMM yyyy', { locale: enUS })}
                 </h2>
                 <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg transition-colors">
@@ -47,13 +47,13 @@ const Calendar = () => {
                 </button>
             </div>
             <div className="flex gap-2">
-                <button onClick={() => setCurrentMonth(new Date())} className="btn-secondary text-sm">Aujourd'hui</button>
+                <button onClick={() => setCurrentMonth(new Date())} className="btn-secondary text-sm">Today</button>
                 <div className="flex bg-gray-100 dark:bg-dark-700 rounded-xl p-1">
                     {['month', 'week'].map(v => (
                         <button key={v} onClick={() => setView(v)}
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${view === v ? 'bg-white dark:bg-dark-800 shadow' : 'text-gray-600 dark:text-gray-400'
                                 }`}>
-                            {v === 'month' ? 'Mois' : 'Semaine'}
+                            {v === 'month' ? 'Month' : 'Week'}
                         </button>
                     ))}
                 </div>
@@ -62,7 +62,7 @@ const Calendar = () => {
     );
 
     const renderDays = () => {
-        const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         return (
             <div className="grid grid-cols-7 mb-2">
                 {days.map(day => (
@@ -118,7 +118,7 @@ const Calendar = () => {
                                 </div>
                             ))}
                             {dayAppointments.length > 3 && (
-                                <div className="text-xs text-gray-500">+{dayAppointments.length - 3} autres</div>
+                                <div className="text-xs text-gray-500">+{dayAppointments.length - 3} more</div>
                             )}
                         </div>
                     </div>
@@ -154,7 +154,7 @@ const Calendar = () => {
                 {/* Selected Day Panel */}
                 <div className="lg:w-80 bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                        {format(selectedDate, 'EEEE d MMMM', { locale: fr })}
+                        {format(selectedDate, 'EEEE, MMMM d', { locale: enUS })}
                     </h3>
                     {selectedDayAppointments.length > 0 ? (
                         <div className="space-y-3">
@@ -178,11 +178,11 @@ const Calendar = () => {
                             <svg className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            <p className="text-gray-500 dark:text-gray-400">Aucun RDV ce jour</p>
+                            <p className="text-gray-500 dark:text-gray-400">No appointments this day</p>
                         </div>
                     )}
                     <button className="w-full btn-primary mt-4">
-                        + Ajouter un RDV
+                        + Add Appointment
                     </button>
                 </div>
             </div>

@@ -52,7 +52,7 @@ const Analytics = () => {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Analytics & BI</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Tableaux de bord et indicateurs de performance</p>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Dashboards and performance indicators</p>
                 </div>
                 <div className="flex gap-2">
                     {['7days', '30days', '90days', '1year'].map(p => (
@@ -61,7 +61,7 @@ const Analytics = () => {
                                     ? 'bg-primary-500 text-white'
                                     : 'bg-white dark:bg-dark-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-dark-700'
                                 }`}>
-                            {p === '7days' ? '7 jours' : p === '30days' ? '30 jours' : p === '90days' ? '90 jours' : '1 an'}
+                            {p === '7days' ? '7 days' : p === '30days' ? '30 days' : p === '90days' ? '90 days' : '1 year'}
                         </button>
                     ))}
                 </div>
@@ -70,28 +70,28 @@ const Analytics = () => {
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <KPICard
-                    title="Chiffre d'affaires"
+                    title="Revenue"
                     value={`${financialSummary?.collected?.toLocaleString('fr-FR') || 0} €`}
                     change="+12%"
                     trend="up"
                     color="primary"
                 />
                 <KPICard
-                    title="Taux de complétion"
+                    title="Completion Rate"
                     value={`${appointmentStats?.summary?.completionRate || 0}%`}
                     change="+5%"
                     trend="up"
                     color="green"
                 />
                 <KPICard
-                    title="RDV totaux"
+                    title="Total Appointments"
                     value={appointmentStats?.summary?.total || 0}
                     change="+8%"
                     trend="up"
                     color="blue"
                 />
                 <KPICard
-                    title="En attente"
+                    title="Outstanding"
                     value={`${financialSummary?.outstanding?.toLocaleString('fr-FR') || 0} €`}
                     change="-3%"
                     trend="down"
@@ -103,7 +103,7 @@ const Analytics = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue Chart */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Évolution du CA</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue Trend</h3>
                     <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={revenueData}>
                             <defs>
@@ -123,7 +123,7 @@ const Analytics = () => {
 
                 {/* Appointments Pie Chart */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Répartition des RDV</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Appointment Distribution</h3>
                     <ResponsiveContainer width="100%" height={300}>
                         <PieChart>
                             <Pie data={appointmentPieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label>
@@ -142,7 +142,7 @@ const Analytics = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Appointment Types */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Types de consultation</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Consultation Types</h3>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={appointmentStats?.byType || []} layout="vertical">
                             <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
@@ -156,7 +156,7 @@ const Analytics = () => {
 
                 {/* Patient Growth */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Croissance patientèle</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Patient Growth</h3>
                     <ResponsiveContainer width="100%" height={300}>
                         <AreaChart data={patientData?.growth || []}>
                             <defs>
@@ -177,7 +177,7 @@ const Analytics = () => {
 
             {/* Sources */}
             <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Sources patients</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Patient Sources</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {(patientData?.bySource || []).map((source, i) => (
                         <div key={i} className="p-4 bg-gray-50 dark:bg-dark-700 rounded-xl text-center">

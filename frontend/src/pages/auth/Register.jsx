@@ -23,17 +23,17 @@ const Register = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (formData.password !== formData.confirmPassword) {
-            alert('Les mots de passe ne correspondent pas');
+            alert('Passwords do not match');
             return;
         }
         await register(formData);
     };
 
     const clinicTypes = [
-        { value: 'general', label: 'Médecine Générale' },
-        { value: 'dental', label: 'Cabinet Dentaire' },
-        { value: 'aesthetic', label: 'Clinique Esthétique' },
-        { value: 'veterinary', label: 'Clinique Vétérinaire' }
+        { value: 'general', label: 'General Practice' },
+        { value: 'dental', label: 'Dental Clinic' },
+        { value: 'aesthetic', label: 'Aesthetic Clinic' },
+        { value: 'veterinary', label: 'Veterinary Clinic' }
     ];
 
     return (
@@ -49,8 +49,8 @@ const Register = () => {
 
             <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl p-8">
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Créer un compte</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Commencez votre essai gratuit de 14 jours</p>
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Create Account</h2>
+                    <p className="text-gray-500 dark:text-gray-400">Start your 14-day free trial</p>
                 </div>
 
                 {error && (
@@ -62,17 +62,17 @@ const Register = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Prénom</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
                             <input
                                 type="text" name="firstName" value={formData.firstName} onChange={handleChange}
-                                className="input-field" placeholder="Jean" required
+                                className="input-field" placeholder="John" required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
                             <input
                                 type="text" name="lastName" value={formData.lastName} onChange={handleChange}
-                                className="input-field" placeholder="Dupont" required
+                                className="input-field" placeholder="Doe" required
                             />
                         </div>
                     </div>
@@ -81,28 +81,28 @@ const Register = () => {
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
                         <input
                             type="email" name="email" value={formData.email} onChange={handleChange}
-                            className="input-field" placeholder="vous@exemple.com" required
+                            className="input-field" placeholder="you@example.com" required
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Spécialité</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Specialty</label>
                         <input
                             type="text" name="specialty" value={formData.specialty} onChange={handleChange}
-                            className="input-field" placeholder="Ex: Médecin généraliste, Dentiste..."
+                            className="input-field" placeholder="e.g. General Practitioner, Dentist..."
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nom du cabinet</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clinic Name</label>
                         <input
                             type="text" name="clinicName" value={formData.clinicName} onChange={handleChange}
-                            className="input-field" placeholder="Cabinet Médical Dupont"
+                            className="input-field" placeholder="My Medical Practice"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Type de cabinet</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clinic Type</label>
                         <select name="clinicType" value={formData.clinicType} onChange={handleChange} className="input-field">
                             {clinicTypes.map(type => (
                                 <option key={type.value} value={type.value}>{type.label}</option>
@@ -111,7 +111,7 @@ const Register = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mot de passe</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Password</label>
                         <div className="relative">
                             <input
                                 type={showPassword ? 'text' : 'password'} name="password"
@@ -129,7 +129,7 @@ const Register = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirmer le mot de passe</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirm Password</label>
                         <input
                             type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
                             className="input-field" placeholder="••••••••" required
@@ -137,14 +137,14 @@ const Register = () => {
                     </div>
 
                     <button type="submit" disabled={isLoading} className="w-full btn-primary flex items-center justify-center gap-2">
-                        {isLoading ? (<><div className="spinner" />Création...</>) : "Créer mon compte"}
+                        {isLoading ? (<><div className="spinner" />Creating...</>) : "Create Account"}
                     </button>
                 </form>
 
                 <div className="mt-8 text-center">
                     <p className="text-gray-500 dark:text-gray-400">
-                        Déjà un compte ?{' '}
-                        <Link to="/login" className="text-primary-500 hover:text-primary-600 font-medium">Se connecter</Link>
+                        Already have an account?{' '}
+                        <Link to="/login" className="text-primary-500 hover:text-primary-600 font-medium">Sign In</Link>
                     </p>
                 </div>
             </div>

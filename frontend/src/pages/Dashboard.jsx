@@ -28,23 +28,23 @@ const Dashboard = () => {
 
     // Mock data for charts
     const revenueData = [
-        { name: 'Lun', revenue: 1200 },
-        { name: 'Mar', revenue: 1800 },
-        { name: 'Mer', revenue: 1500 },
-        { name: 'Jeu', revenue: 2100 },
-        { name: 'Ven', revenue: 2400 },
-        { name: 'Sam', revenue: 1800 },
-        { name: 'Dim', revenue: 0 },
+        { name: 'Mon', revenue: 1200 },
+        { name: 'Tue', revenue: 1800 },
+        { name: 'Wed', revenue: 1500 },
+        { name: 'Thu', revenue: 2100 },
+        { name: 'Fri', revenue: 2400 },
+        { name: 'Sat', revenue: 1800 },
+        { name: 'Sun', revenue: 0 },
     ];
 
     const appointmentData = [
-        { name: 'Lun', rdv: 12 },
-        { name: 'Mar', rdv: 15 },
-        { name: 'Mer', rdv: 10 },
-        { name: 'Jeu', rdv: 18 },
-        { name: 'Ven', rdv: 20 },
-        { name: 'Sam', rdv: 8 },
-        { name: 'Dim', rdv: 0 },
+        { name: 'Mon', appts: 12 },
+        { name: 'Tue', appts: 15 },
+        { name: 'Wed', appts: 10 },
+        { name: 'Thu', appts: 18 },
+        { name: 'Fri', appts: 20 },
+        { name: 'Sat', appts: 8 },
+        { name: 'Sun', appts: 0 },
     ];
 
     if (loading) {
@@ -60,21 +60,21 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Tableau de bord</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Vue d'ensemble de votre activité</p>
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1">Overview of your activity</p>
                 </div>
                 <div className="flex gap-3">
                     <Link to="/appointments" className="btn-secondary">
                         <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Nouveau RDV
+                        New Appointment
                     </Link>
                     <Link to="/patients" className="btn-primary">
                         <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                         </svg>
-                        Nouveau Patient
+                        New Patient
                     </Link>
                 </div>
             </div>
@@ -82,17 +82,17 @@ const Dashboard = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="RDV Aujourd'hui"
+                    title="Today's Appointments"
                     value={stats?.appointmentsToday || 0}
-                    subtitle={`${stats?.appointmentsCompleted || 0} terminés`}
+                    subtitle={`${stats?.appointmentsCompleted || 0} completed`}
                     icon={<CalendarIcon />}
                     color="primary"
                     trend="+12%"
                 />
                 <StatCard
-                    title="Chiffre du jour"
+                    title="Today's Revenue"
                     value={`${(stats?.revenueToday || 0).toLocaleString('fr-FR')} €`}
-                    subtitle="vs hier"
+                    subtitle="vs yesterday"
                     icon={<CurrencyIcon />}
                     color="green"
                     trend="+8%"
@@ -100,15 +100,15 @@ const Dashboard = () => {
                 <StatCard
                     title="Total Patients"
                     value={stats?.totalPatients || 0}
-                    subtitle={`+${stats?.newPatientsMonth || 0} ce mois`}
+                    subtitle={`+${stats?.newPatientsMonth || 0} this month`}
                     icon={<UsersIcon />}
                     color="blue"
                     trend="+5%"
                 />
                 <StatCard
-                    title="À encaisser"
+                    title="Outstanding"
                     value={`${(stats?.pendingInvoicesAmount || 0).toLocaleString('fr-FR')} €`}
-                    subtitle={`${stats?.pendingInvoicesCount || 0} factures`}
+                    subtitle={`${stats?.pendingInvoicesCount || 0} invoices`}
                     icon={<InvoiceIcon />}
                     color="orange"
                 />
@@ -118,7 +118,7 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue Chart */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-dark-700">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Chiffre d'affaires</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue</h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <AreaChart data={revenueData}>
                             <defs>
@@ -145,7 +145,7 @@ const Dashboard = () => {
 
                 {/* Appointments Chart */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-dark-700">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Rendez-vous</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Appointments</h3>
                     <ResponsiveContainer width="100%" height={250}>
                         <BarChart data={appointmentData}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
@@ -159,7 +159,7 @@ const Dashboard = () => {
                                     color: '#fff'
                                 }}
                             />
-                            <Bar dataKey="rdv" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                            <Bar dataKey="appts" fill="#14b8a6" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
@@ -170,9 +170,9 @@ const Dashboard = () => {
                 {/* Upcoming Appointments */}
                 <div className="lg:col-span-2 bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700">
                     <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Prochains RDV</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upcoming Appointments</h3>
                         <Link to="/calendar" className="text-sm text-primary-500 hover:text-primary-600 font-medium">
-                            Voir tout →
+                            View all →
                         </Link>
                     </div>
                     <div className="divide-y divide-gray-100 dark:divide-dark-700">
@@ -194,13 +194,13 @@ const Dashboard = () => {
                                         {new Date(apt.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                     </p>
                                     <span className={`badge ${apt.status === 'confirmed' ? 'badge-success' : 'badge-info'}`}>
-                                        {apt.status === 'confirmed' ? 'Confirmé' : 'En attente'}
+                                        {apt.status === 'confirmed' ? 'Confirmed' : 'Pending'}
                                     </span>
                                 </div>
                             </div>
                         )) : (
                             <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                Aucun rendez-vous à venir
+                                No upcoming appointments
                             </div>
                         )}
                     </div>
@@ -211,24 +211,24 @@ const Dashboard = () => {
                     <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                            Alertes IA
+                            AI Alerts
                         </h3>
                     </div>
                     <div className="p-4 space-y-3">
                         <AlertCard
                             type="warning"
-                            title="Risque de no-show"
-                            message="3 patients ont une probabilité élevée d'absence aujourd'hui"
+                            title="No-show Risk"
+                            message="3 patients have high no-show probability today"
                         />
                         <AlertCard
                             type="info"
-                            title="Stock bas"
-                            message="Niveau d'inventaire faible pour 2 produits"
+                            title="Low Stock"
+                            message="Low inventory level for 2 products"
                         />
                         <AlertCard
                             type="success"
-                            title="Objectif atteint"
-                            message="CA mensuel objectif dépassé de 12%"
+                            title="Target Achieved"
+                            message="Monthly revenue target exceeded by 12%"
                         />
                     </div>
                 </div>

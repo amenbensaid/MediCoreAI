@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 const PatientDetail = () => {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
+    const [showEditModal, setShowEditModal] = useState(false);
 
     useEffect(() => {
         fetchPatient();
@@ -23,6 +25,17 @@ const PatientDetail = () => {
         }
     };
 
+    const handleDelete = async () => {
+        if (!window.confirm('Are you sure you want to delete this patient?')) return;
+        try {
+            await api.delete(`/patients/${id}`);
+            navigate('/patients');
+        } catch (error) {
+            console.error('Error deleting patient:', error);
+            alert('Failed to delete patient');
+        }
+    };
+
     if (loading) {
         return <div className="flex items-center justify-center h-64"><div className="spinner" /></div>;
     }
@@ -32,10 +45,10 @@ const PatientDetail = () => {
     }
 
     const tabs = [
-        { id: 'overview', name: 'Vue d\'ensemble', icon: '📋' },
-        { id: 'appointments', name: 'Rendez-vous', icon: '📅' },
-        { id: 'records', name: 'Dossier médical', icon: '🏥' },
-        { id: 'invoices', name: 'Facturation', icon: '💳' },
+        { id: 'overview', name: 'Overview', icon: '📋' },
+        { id: 'appointments', name: 'Appointments', icon: '📅' },
+        { id: 'records', name: 'Medical Records', icon: '🏥' },
+        { id: 'invoices', name: 'Billing', icon: '💳' },
     ];
 
     return (
@@ -51,8 +64,13 @@ const PatientDetail = () => {
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{patient.fullName}</h1>
                     <p className="text-gray-500 dark:text-gray-400">{patient.patientNumber}</p>
                 </div>
-                <button className="btn-secondary">Modifier</button>
-                <button className="btn-primary">Nouveau RDV</button>
+                <button onClick={() => setShowEditModal(true)} className="btn-secondary">Edit</button>
+                <Link to="/appointments" className="btn-primary">New Appointment</Link>
+                <button onClick={handleDelete} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete patient">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
             </div>
 
             {/* Patient Card */}
@@ -63,11 +81,11 @@ const PatientDetail = () => {
                     </div>
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
                         <InfoItem label="Email" value={patient.email || '-'} />
-                        <InfoItem label="Téléphone" value={patient.phone || '-'} />
-                        <InfoItem label="Date de naissance" value={patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('fr-FR') : '-'} />
-                        <InfoItem label="Adresse" value={patient.address || '-'} />
-                        <InfoItem label="Ville" value={patient.city || '-'} />
-                        <InfoItem label="Groupe sanguin" value={patient.bloodType || '-'} />
+                        <InfoItem label="Phone" value={patient.phone || '-'} />
+                        <InfoItem label="Date of Birth" value={patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('en-US') : '-'} />
+                        <InfoItem label="Address" value={patient.address || '-'} />
+                        <InfoItem label="City" value={patient.city || '-'} />
+                        <InfoItem label="Blood Type" value={patient.bloodType || '-'} />
                     </div>
                 </div>
             </div>
@@ -101,11 +119,11 @@ const PatientDetail = () => {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-gray-500">Aucune allergie connue</p>
+                                <p className="text-gray-500">No known allergies</p>
                             )}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Conditions chroniques</h3>
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Chronic Conditions</h3>
                             {patient.chronicConditions?.length > 0 ? (
                                 <div className="flex flex-wrap gap-2">
                                     {patient.chronicConditions.map((condition, i) => (
@@ -113,19 +131,19 @@ const PatientDetail = () => {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-gray-500">Aucune condition chronique</p>
+                                <p className="text-gray-500">No chronic conditions</p>
                             )}
                         </div>
                         <div className="md:col-span-2">
                             <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Notes</h3>
-                            <p className="text-gray-600 dark:text-gray-400">{patient.notes || 'Aucune note'}</p>
+                            <p className="text-gray-600 dark:text-gray-400">{patient.notes || 'No notes'}</p>
                         </div>
                     </div>
                 )}
 
                 {activeTab === 'appointments' && (
                     <div className="space-y-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Historique des rendez-vous</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Appointment History</h3>
                         {patient.recentAppointments?.length > 0 ? (
                             <div className="divide-y divide-gray-100 dark:divide-dark-700">
                                 {patient.recentAppointments.map(apt => (
@@ -149,7 +167,7 @@ const PatientDetail = () => {
 
                 {activeTab === 'records' && (
                     <div className="space-y-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Dossier médical</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Medical Records</h3>
                         {patient.recentRecords?.length > 0 ? (
                             <div className="space-y-4">
                                 {patient.recentRecords.map(record => (
@@ -171,7 +189,7 @@ const PatientDetail = () => {
 
                 {activeTab === 'invoices' && (
                     <div className="space-y-4">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Factures en attente</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Pending Invoices</h3>
                         {patient.pendingInvoices?.length > 0 ? (
                             <div className="divide-y divide-gray-100 dark:divide-dark-700">
                                 {patient.pendingInvoices.map(inv => (

@@ -1,0 +1,2248 @@
+% ============================================================
+% MediCore AI — PFE Report (Licence 3 Informatique)
+% Structure: Axe 1 – Scrum (Possibilité 2)
+% ============================================================
+\documentclass[12pt,a4paper,oneside]{report}
+
+% ---------- PACKAGES ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm}
+\usepackage{setspace}
+\onehalfspacing
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows.meta,positioning,fit,calc,decorations.markings}
+\usepackage{pifont}
+
+% ---------- COLORS ----------
+\definecolor{primary}{HTML}{2563EB}
+\definecolor{secondary}{HTML}{7C3AED}
+\definecolor{accent}{HTML}{06B6D4}
+\definecolor{dark}{HTML}{1E293B}
+\definecolor{codebg}{HTML}{F8FAFC}
+\definecolor{codegreen}{HTML}{16A34A}
+\definecolor{codegray}{HTML}{64748B}
+
+% ---------- HYPERREF ----------
+\hypersetup{
+    colorlinks=true,
+    linkcolor=primary,
+    urlcolor=accent,
+    citecolor=secondary
+}
+
+% ---------- LISTINGS ----------
+\lstset{
+    backgroundcolor=\color{codebg},
+    basicstyle=\ttfamily\small,
+    keywordstyle=\color{primary}\bfseries,
+    stringstyle=\color{codegreen},
+    commentstyle=\color{codegray}\itshape,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{codegray!30},
+    tabsize=2
+}
+
+% ---------- HEADERS / FOOTERS ----------
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\leftmark}
+\fancyhead[R]{\small MediCore AI}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ---------- TITLE FORMATTING ----------
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{dark}}{Chapter \thechapter}{20pt}{\Huge}
+\titleformat{\section}{\Large\bfseries\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{secondary}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{accent}}{\thesubsubsection}{1em}{}
+
+% ---------- CUSTOM UML COMMANDS ----------
+% Actor stick figure
+\newcommand{\umlactor}[3]{%
+    % #1=x, #2=y, #3=name
+    \draw (#1,#2+0.5) circle (0.15);
+    \draw (#1,#2+0.35) -- (#1,#2);
+    \draw (#1-0.2,#2+0.25) -- (#1+0.2,#2+0.25);
+    \draw (#1,#2) -- (#1-0.15,#2-0.25);
+    \draw (#1,#2) -- (#1+0.15,#2-0.25);
+    \node[below,font=\footnotesize] at (#1,#2-0.3) {#3};
+}
+
+% ---------- DOCUMENT ----------
+\begin{document}
+
+% ============================================================
+%  COVER PAGE
+% ============================================================
+\begin{titlepage}
+\begin{center}
+
+\vspace*{0.5cm}
+% --- Replace with your university logo ---
+% \includegraphics[width=4cm]{logo_universite.png}\\[0.5cm]
+
+{\large \textbf{Republic of Tunisia}}\\
+{\large Ministry of Higher Education and Scientific Research}\\[0.3cm]
+{\large \textbf{Ecole Supérieure Des Sciences Et De Technologie De Hammam Sousse}}\\
+
+\rule{\linewidth}{0.5mm}\\[0.5cm]
+
+{\LARGE \textbf{End-of-Studies Project Report}}\\[0.3cm]
+{\large Submitted for the degree of}\\
+{\large \textbf{Bachelor's in Computer Science}}\\[0.5cm]
+
+\rule{\linewidth}{0.5mm}\\[1cm]
+
+{\Huge \textbf{\textcolor{primary}{MediCore AI}}}\\[0.5cm]
+{\Large An AI-Powered Medical CRM and Practice Management System}\\[1.5cm]
+
+\begin{minipage}{0.45\textwidth}
+\begin{flushleft}
+\textbf{Prepared by:}\\
+{\large Amen Ben Said}
+\end{flushleft}
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\textwidth}
+\begin{flushright}
+\textbf{Academic Supervisor:}\\
+{\large Dr. Sonia Gaied Fantar}\\[0.3cm]
+\textbf{Company Supervisor:}\\
+{\large Mohamed Aziz Ben Hassine}
+\end{flushright}
+\end{minipage}
+
+\vfill
+
+{\large Academic Year: 2025 -- 2026}
+
+\end{center}
+\end{titlepage}
+
+% ============================================================
+%  FRONT MATTER (roman numerals)
+% ============================================================
+\pagenumbering{roman}
+
+% --- Dedications ---
+\chapter*{Dedications}
+\addcontentsline{toc}{chapter}{Dedications}
+\vspace{2cm}
+\begin{center}
+\textit{I dedicate this work to my beloved family, \\
+who have always supported and encouraged me \\
+throughout my academic journey.\\[1cm]
+To my friends and colleagues \\
+who shared this experience with me.\\[1cm]
+To all those who believed in me.}
+\end{center}
+\newpage
+
+% --- Acknowledgments ---
+\chapter*{Acknowledgments}
+\addcontentsline{toc}{chapter}{Acknowledgments}
+
+I would like to express my sincere gratitude to all those who contributed to the completion of this end-of-studies project.
+
+First and foremost, I wish to thank my academic supervisor, \textbf{Dr. Sonia Gaied Fantar}, member of the PRINCE Research Unit at ISITCOM Hammam Sousse, for her guidance, availability, and valuable advice throughout this project.
+
+I also extend my thanks to my company supervisor, \textbf{Mr. Mohamed Aziz Ben Hassine}, Project Manager at Cafee Agency, for welcoming me within the organization and for creating an environment conducive to learning and professional development.
+
+I would like to thank all the professors at \textbf{ESST Hammam Sousse} for the knowledge they have imparted throughout my academic journey, and the members of the jury for agreeing to evaluate this work.
+
+Finally, I express my deepest gratitude to my family and friends for their unwavering support and encouragement.
+
+\newpage
+
+% --- Abstract ---
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This report presents the design and development of \textbf{MediCore AI}, an AI-powered SaaS platform combining Customer Relationship Management (CRM) and Practice Management System (PMS) functionalities tailored for healthcare professionals. The platform addresses the challenges of manual administrative management in medical practices by automating scheduling, patient records management, billing, and clinical workflows.
+
+Built with a modern technology stack comprising React.js, Node.js/Express, and PostgreSQL, the application follows a three-tier client--server architecture and is fully containerized using Docker. The development followed the Scrum agile methodology, organized into multiple sprints covering authentication, patient management, appointment scheduling, invoicing, and specialized medical modules (dental, veterinary, and aesthetic).
+
+The resulting platform offers a comprehensive, modular, and scalable solution that can be adapted to various medical specialties while maintaining data separation through a multi-tenant architecture.
+
+\textbf{Keywords:} CRM, PMS, Healthcare, Artificial Intelligence, SaaS, React, Node.js, PostgreSQL, Scrum, UML.
+
+\newpage
+
+% --- Summary ---
+\chapter*{Summary}
+\addcontentsline{toc}{chapter}{Summary}
+
+This report presents the work carried out during an end-of-studies internship at \textbf{Cafee Agency}, a development and communication agency, from February 2, 2026 to June 2, 2026. The internship focused on the design and implementation of \textbf{MediCore AI}, an AI-powered SaaS platform combining Customer Relationship Management (CRM) and Practice Management System (PMS) functionalities tailored for healthcare professionals.
+
+The mission consisted of designing and developing a web platform and ensuring functional coherence and an ergonomic interface adapted to project requirements. The application was built using React.js for the frontend, Node.js/Express for the backend, and PostgreSQL for data persistence, following a three-tier architecture fully containerized with Docker.
+
+The development followed the Scrum agile methodology, organized into four sprints covering user authentication, patient management, appointment scheduling, invoicing, analytics, and specialized medical modules for dental, veterinary, and aesthetic practices.
+
+\textbf{Keywords:} CRM, PMS, Healthcare, Artificial Intelligence, SaaS, React, Node.js, PostgreSQL, Scrum, UML.
+
+\newpage
+
+% --- Table of Contents ---
+\tableofcontents
+\newpage
+
+% --- List of Figures ---
+\listoffigures
+\addcontentsline{toc}{chapter}{List of Figures}
+\newpage
+
+% --- List of Tables ---
+\listoftables
+\addcontentsline{toc}{chapter}{List of Tables}
+\newpage
+
+% --- List of Abbreviations ---
+\chapter*{List of Abbreviations}
+\addcontentsline{toc}{chapter}{List of Abbreviations}
+
+\begin{tabular}{ll}
+\textbf{AI}    & Artificial Intelligence \\
+\textbf{API}   & Application Programming Interface \\
+\textbf{BI}    & Business Intelligence \\
+\textbf{CORS}  & Cross-Origin Resource Sharing \\
+\textbf{CRM}   & Customer Relationship Management \\
+\textbf{CRUD}  & Create, Read, Update, Delete \\
+\textbf{CSS}   & Cascading Style Sheets \\
+\textbf{DOM}   & Document Object Model \\
+\textbf{JWT}   & JSON Web Token \\
+\textbf{MFA}   & Multi-Factor Authentication \\
+\textbf{NLP}   & Natural Language Processing \\
+\textbf{ORM}   & Object-Relational Mapping \\
+\textbf{PFE}   & Projet de Fin d'Études (End-of-Studies Project) \\
+\textbf{PMS}   & Practice Management System \\
+\textbf{PWA}   & Progressive Web Application \\
+\textbf{REST}  & Representational State Transfer \\
+\textbf{SaaS}  & Software as a Service \\
+\textbf{SPA}   & Single Page Application \\
+\textbf{SQL}   & Structured Query Language \\
+\textbf{TLS}   & Transport Layer Security \\
+\textbf{UI}    & User Interface \\
+\textbf{UML}   & Unified Modeling Language \\
+\textbf{UX}    & User Experience \\
+\textbf{UUID}  & Universally Unique Identifier \\
+\end{tabular}
+
+\newpage
+
+% ============================================================
+%  MAIN MATTER (arabic numerals)
+% ============================================================
+\pagenumbering{arabic}
+
+% ============================================================
+%  GENERAL INTRODUCTION
+% ============================================================
+\chapter*{General Introduction}
+\addcontentsline{toc}{chapter}{General Introduction}
+\markboth{General Introduction}{}
+
+The healthcare sector is undergoing a profound digital transformation, driven by the growing need to optimize administrative workflows, enhance patient care, and harness the power of data-driven decision-making. Medical practices, whether in general medicine, dentistry, veterinary care, or aesthetic medicine, face daily challenges related to patient scheduling, record-keeping, billing, and communication—tasks that remain largely manual and time-consuming in many clinics.
+
+In this context, the need for an integrated, intelligent software solution capable of centralizing and automating these critical operations has become increasingly apparent. Traditional practice management tools often lack flexibility, fail to support multi-specialty workflows, and offer limited data analytics capabilities.
+
+\textbf{MediCore AI} was conceived to address these challenges. It is an AI-powered SaaS platform that combines the functionalities of a Customer Relationship Management (CRM) system and a Practice Management System (PMS), specifically designed for healthcare professionals. The platform aims to:
+
+\begin{itemize}
+    \item Automate repetitive administrative tasks such as appointment scheduling and invoicing.
+    \item Centralize patient data with comprehensive electronic medical records.
+    \item Provide specialized modules adapted to different medical disciplines (dentistry, veterinary, aesthetics).
+    \item Integrate artificial intelligence capabilities for predictive scheduling and clinical decision support.
+    \item Deliver actionable business intelligence through rich analytics dashboards.
+\end{itemize}
+
+This report documents the complete lifecycle of the MediCore AI project, from requirements analysis and system design to implementation and testing. The development follows the Scrum agile methodology, ensuring iterative delivery and continuous improvement.
+
+The report is organized as follows:
+
+\begin{itemize}
+    \item \textbf{Chapter 1: General Project Framework} — Presents the host organization, the project context, the problem analysis, and the chosen development methodology.
+    \item \textbf{Chapter 2: Project Preparation} — Covers requirements specification, UML modeling, Scrum project planning, the technical environment, and the system architecture.
+    \item \textbf{Chapter 3: Release 1} — Details the design, development, and testing of Sprint 1 (Authentication \& User Management) and Sprint 2 (Patient Management \& Medical Records).
+    \item \textbf{Chapter 4: Release 2} — Details the design, development, and testing of Sprint 3 (Appointment Scheduling \& Calendar) and Sprint 4 (Billing, Analytics \& Specialized Modules).
+\end{itemize}
+
+
+% ============================================================
+%  CHAPTER 1 — GENERAL PROJECT FRAMEWORK
+% ============================================================
+\chapter{General Project Framework}
+
+\section{Introduction}
+
+This chapter presents the general framework of the MediCore AI project. We begin by introducing the host organization, then describe the project context, analyze existing solutions, and present the proposed approach. Finally, we justify the choice of the Scrum agile methodology and the UML modeling language.
+
+\section{Host Organization}
+
+\subsection{Presentation}
+\textbf{Cafee Agency} is a development and communication agency specializing in the design and creation of innovative digital solutions for businesses across various sectors. The agency offers a wide range of services including web development, mobile application development, digital marketing, branding, and communication strategy.
+
+\begin{table}[H]
+\centering
+\caption{Host organization information}
+\label{tab:host_org}
+\begin{tabular}{|p{4.5cm}|p{8.5cm}|}
+\hline
+\textbf{Field} & \textbf{Details} \\
+\hline
+Company Name & Cafee Agency \\
+\hline
+Sector & Development and Communication Agency \\
+\hline
+Address & New Mexico \\
+\hline
+Phone & +33 6 44 33 603 \\
+\hline
+Internship Supervisor & Mohamed Aziz Ben Hassine \\
+\hline
+Supervisor Role & Project Manager (Chef de Projet) \\
+\hline
+Internship Period & February 2, 2026 -- June 2, 2026 (4 months) \\
+\hline
+Internship Title & End-of-Studies Internship (Stage de Fin d'Études) \\
+\hline
+\end{tabular}
+\end{table}
+
+The agency's mission is to accompany its clients in their digital transformation by delivering tailored, high-quality web and mobile solutions that meet modern user expectations.
+
+\subsection{Organizational Structure}
+Cafee Agency is organized into the following functional departments:
+\begin{itemize}
+    \item \textbf{Development Department} — Responsible for web and mobile software engineering.
+    \item \textbf{Design Department} — Handles UI/UX design, branding, and visual identity.
+    \item \textbf{Communication Department} — Manages digital marketing and client communication strategies.
+    \item \textbf{Project Management} — Coordinates project delivery, client relations, and agile workflows.
+\end{itemize}
+
+\section{Project Context}
+
+\subsection{General Context}
+The digitalization of healthcare practices has become a strategic priority worldwide. In Tunisia and across North Africa, many medical offices still rely on paper-based systems or fragmented software solutions that do not communicate with each other. This creates operational inefficiencies, data silos, and missed opportunities for clinical and business optimization.
+
+MediCore AI is positioned as a unified, modular SaaS platform designed to replace disparate tools with a single, AI-enhanced solution that covers the entire operational lifecycle of a medical practice.
+
+\subsection{Analysis of the Existing System}
+
+\subsubsection{Study of the Existing System}
+Before developing MediCore AI, we analyzed the existing landscape of practice management solutions. The main observations are:
+
+\begin{itemize}
+    \item \textbf{Doctolib} — Focused primarily on appointment scheduling and teleconsultation; limited CRM and billing features.
+    \item \textbf{Vetocom} — A veterinary-specific solution lacking multi-specialty support.
+    \item \textbf{Logos\_w} — A dental practice manager with rigid workflows and no AI capabilities.
+    \item \textbf{Generic CRMs (Salesforce, HubSpot)} — Powerful but not designed for healthcare compliance and clinical workflows.
+\end{itemize}
+
+\subsubsection{Criticism of the Existing System}
+The analysis reveals the following shortcomings:
+
+\begin{table}[H]
+\centering
+\caption{Criticism of existing solutions}
+\label{tab:criticism}
+\begin{tabular}{|p{4cm}|p{9cm}|}
+\hline
+\textbf{Limitation} & \textbf{Description} \\
+\hline
+Lack of modularity & Most solutions target a single specialty and cannot adapt to multi-disciplinary clinics. \\
+\hline
+No AI integration & Existing tools offer no predictive scheduling or clinical decision support. \\
+\hline
+Limited analytics & Business intelligence features are absent or superficial. \\
+\hline
+Poor interoperability & Data is often locked in proprietary formats with no API access. \\
+\hline
+High cost & Enterprise solutions are prohibitively expensive for small practices. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Proposed Solution}
+To overcome these limitations, we propose \textbf{MediCore AI}, a modular web platform featuring:
+
+\begin{itemize}
+    \item A \textbf{core CRM/PMS engine} handling patients, appointments, billing, and communications.
+    \item \textbf{Specialty-specific modules} for dentistry, veterinary medicine, and aesthetic medicine.
+    \item \textbf{AI-powered capabilities} including predictive no-show detection and medical record analysis.
+    \item A \textbf{Business Intelligence dashboard} providing real-time financial and clinical KPIs.
+    \item A \textbf{multi-tenant architecture} enabling data isolation per clinic.
+    \item A \textbf{modern, responsive UI} with dark/light mode support.
+\end{itemize}
+
+\section{Work Methodology}
+
+\subsection{Agile Methodologies}
+Agile methodologies are iterative and incremental approaches to software development that prioritize collaboration, flexibility, and rapid delivery. Unlike traditional waterfall methods, agile frameworks embrace changing requirements and deliver working software in short cycles.
+
+The key principles of agile development include:
+\begin{itemize}
+    \item Delivering working software frequently (weeks rather than months).
+    \item Welcoming changing requirements, even late in development.
+    \item Close collaboration between developers and stakeholders.
+    \item Continuous attention to technical excellence and good design.
+\end{itemize}
+
+\subsection{The Scrum Methodology}
+
+For this project, we adopted the \textbf{Scrum} framework, one of the most widely used agile methodologies. Scrum organizes work into fixed-length iterations called \textit{Sprints}, typically lasting 2--4 weeks.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, rounded corners, draw=primary, fill=primary!10, minimum width=2.5cm, minimum height=1cm, text centered, font=\small},
+    arrow/.style={-{Stealth[length=3mm]}, thick, primary}
+]
+    \node[box] (backlog) at (0,0) {Product\\Backlog};
+    \node[box] (sprint) at (3.5,0) {Sprint\\Backlog};
+    \node[box] (dev) at (7,0) {Sprint\\(2--4 weeks)};
+    \node[box] (review) at (10.5,0) {Sprint\\Review};
+    \node[box] (increment) at (14,0) {Product\\Increment};
+    
+    \draw[arrow] (backlog) -- (sprint);
+    \draw[arrow] (sprint) -- (dev);
+    \draw[arrow] (dev) -- (review);
+    \draw[arrow] (review) -- (increment);
+    
+    \draw[arrow, secondary, dashed] (review.south) -- ++(0,-1) -| (backlog.south);
+    \node[font=\footnotesize\itshape, color=secondary] at (5.25,-1.3) {Feedback \& Refinement};
+\end{tikzpicture}
+\caption{The Scrum process flow}
+\label{fig:scrum_process}
+\end{figure}
+
+The key Scrum roles are:
+\begin{itemize}
+    \item \textbf{Product Owner} — Defines and prioritizes features in the product backlog.
+    \item \textbf{Scrum Master} — Facilitates the process and removes impediments.
+    \item \textbf{Development Team} — Self-organizing team that delivers increments.
+\end{itemize}
+
+The key Scrum events are:
+\begin{itemize}
+    \item \textbf{Sprint Planning} — The team selects items from the product backlog for the sprint.
+    \item \textbf{Daily Standup} — A short daily meeting to synchronize activities.
+    \item \textbf{Sprint Review} — Demonstration of completed work to stakeholders.
+    \item \textbf{Sprint Retrospective} — Team reflection on process improvements.
+\end{itemize}
+
+\subsection{Modeling Language}
+We use \textbf{UML (Unified Modeling Language)} as our modeling standard. UML provides a standardized set of diagrams to visualize system architecture and behavior, including:
+
+\begin{itemize}
+    \item \textbf{Use Case Diagrams} — To capture functional requirements.
+    \item \textbf{Class Diagrams} — To model the data structure.
+    \item \textbf{Sequence Diagrams} — To illustrate interactions between components.
+    \item \textbf{Activity Diagrams} — To describe workflows.
+\end{itemize}
+
+\section{Conclusion}
+In this chapter, we presented the general framework of the MediCore AI project. We introduced the host organization, analyzed the existing landscape of healthcare management solutions, and justified the choice of the Scrum methodology for iterative delivery. The next chapter will detail the project preparation phase, including requirements analysis, product backlog definition, and system architecture design.
+
+
+% ============================================================
+%  CHAPTER 2 — PROJECT PREPARATION
+% ============================================================
+\chapter{Project Preparation}
+
+\section{Introduction}
+This chapter covers the preparation phase of the MediCore AI project. We begin by capturing and specifying the system requirements (functional and non-functional), then model them using UML use case diagrams. We proceed to define the Scrum project plan, describe the development environment, and present the chosen system architecture.
+
+\section{Requirements Capture}
+
+\subsection{Functional Requirements}
+The functional requirements describe what the system must do. Based on the project specifications (cahier des charges), MediCore AI must provide the following capabilities:
+
+\begin{table}[H]
+\centering
+\caption{Functional requirements of MediCore AI}
+\label{tab:functional_req}
+\begin{tabular}{|c|p{4.5cm}|p{7.5cm}|}
+\hline
+\textbf{ID} & \textbf{Requirement} & \textbf{Description} \\
+\hline
+FR-01 & User Authentication & Registration, login, logout, password management with JWT-based security. \\
+\hline
+FR-02 & Patient Management & Complete CRUD operations for patient records including personal data, medical history, allergies, and insurance information. \\
+\hline
+FR-03 & Medical Records & Create, view, and manage consultation records with diagnosis, prescriptions, and vital signs. \\
+\hline
+FR-04 & Appointment Scheduling & Create, modify, cancel appointments with calendar view and conflict detection. \\
+\hline
+FR-05 & Invoicing \& Billing & Generate invoices, manage payments, track overdue balances. \\
+\hline
+FR-06 & Service Catalog & Define and manage available medical services with pricing. \\
+\hline
+FR-07 & Analytics Dashboard & Real-time KPIs: revenue, appointment statistics, patient demographics. \\
+\hline
+FR-08 & Dental Module & Interactive dental chart with tooth-by-tooth diagnosis tracking. \\
+\hline
+FR-09 & Veterinary Module & Animal management linked to owners, species/breed tracking, vaccination records. \\
+\hline
+FR-10 & Aesthetic Module & Before/after image comparison, injection point mapping, product tracking. \\
+\hline
+FR-11 & Document Management & Upload, store, and organize clinical documents and images. \\
+\hline
+FR-12 & Communication & Send emails and SMS notifications, manage newsletter campaigns. \\
+\hline
+FR-13 & Multi-clinic Support & Data isolation per clinic with role-based access control. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Non-Functional Requirements}
+Non-functional requirements define the quality attributes and constraints of the system:
+
+\begin{table}[H]
+\centering
+\caption{Non-functional requirements}
+\label{tab:nonfunctional_req}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Requirement} & \textbf{Description} \\
+\hline
+Security & Password hashing (bcrypt), JWT authentication, CORS policy enforcement, Helmet.js HTTP header security. \\
+\hline
+Performance & API response time under 500ms, pagination for large datasets, database indexing. \\
+\hline
+Scalability & Multi-tenant architecture, containerized deployment via Docker. \\
+\hline
+Usability & Intuitive responsive interface, dark/light theme, WCAG accessibility compliance. \\
+\hline
+Reliability & Transaction-based database operations (COMMIT/ROLLBACK), graceful error handling. \\
+\hline
+Maintainability & Modular code architecture, separation of concerns (routes, middleware, config). \\
+\hline
+Portability & Docker containerization ensures consistent deployment across environments. \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Requirements Modeling}
+
+\subsection{Actor Identification}
+The system interacts with the following actors:
+
+\begin{table}[H]
+\centering
+\caption{System actors}
+\label{tab:actors}
+\begin{tabular}{|p{3cm}|p{10cm}|}
+\hline
+\textbf{Actor} & \textbf{Description} \\
+\hline
+Administrator & Manages the platform configuration, user accounts, clinics, and system settings. Has full access to all features. \\
+\hline
+Practitioner & A healthcare professional (doctor, dentist, vet) who manages patients, appointments, medical records, and billing. \\
+\hline
+Staff & Administrative staff with limited access for scheduling, patient check-in, and billing operations. \\
+\hline
+System (Timer) & An internal actor that triggers automated processes such as appointment reminders and statistics aggregation. \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Global Use Case Diagram}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.85, transform shape,
+    usecase/.style={ellipse, draw=primary, fill=primary!5, minimum width=3.2cm, minimum height=1cm, text centered, font=\footnotesize, inner sep=2pt},
+    sysbox/.style={rectangle, draw=dark, dashed, rounded corners=5pt, inner sep=10pt}
+]
+    % System boundary
+    \node[sysbox, minimum width=10cm, minimum height=16cm] (sys) at (5,0) {};
+    \node[font=\small\bfseries, color=dark] at (5,8.3) {MediCore AI System};
+    
+    % Actors - Left
+    \umlactor{-1.5}{6}{Administrator}
+    \umlactor{-1.5}{2}{Practitioner}
+    \umlactor{-1.5}{-2}{Staff}
+    
+    % Actor - Right
+    \umlactor{11.5}{0}{System (Timer)}
+    
+    % Use cases
+    \node[usecase] (uc1) at (5,7) {Manage Users};
+    \node[usecase] (uc2) at (5,5.7) {Manage Clinics};
+    \node[usecase] (uc3) at (5,4.4) {Authenticate};
+    \node[usecase] (uc4) at (5,3.1) {Manage Patients};
+    \node[usecase] (uc5) at (5,1.8) {Manage Medical Records};
+    \node[usecase] (uc6) at (5,0.5) {Manage Appointments};
+    \node[usecase] (uc7) at (5,-0.8) {Manage Invoices};
+    \node[usecase] (uc8) at (5,-2.1) {Manage Services};
+    \node[usecase] (uc9) at (5,-3.4) {Manage Documents};
+    \node[usecase] (uc10) at (5,-4.7) {View Analytics};
+    \node[usecase] (uc11) at (5,-6) {Manage Dental Charts};
+    \node[usecase] (uc12) at (5,-7.2) {Manage Veterinary\\Records};
+    
+    % Connections — Administrator
+    \draw[-] (-1,6) -- (uc1.west);
+    \draw[-] (-1,6) -- (uc2.west);
+    \draw[-] (-1,6) -- (uc3.west);
+    \draw[-] (-1,6) -- (uc10.west);
+    
+    % Connections — Practitioner
+    \draw[-] (-1,2) -- (uc3.west);
+    \draw[-] (-1,2) -- (uc4.west);
+    \draw[-] (-1,2) -- (uc5.west);
+    \draw[-] (-1,2) -- (uc6.west);
+    \draw[-] (-1,2) -- (uc7.west);
+    \draw[-] (-1,2) -- (uc9.west);
+    \draw[-] (-1,2) -- (uc10.west);
+    \draw[-] (-1,2) -- (uc11.west);
+    \draw[-] (-1,2) -- (uc12.west);
+    
+    % Connections — Staff
+    \draw[-] (-1,-2) -- (uc3.west);
+    \draw[-] (-1,-2) -- (uc4.west);
+    \draw[-] (-1,-2) -- (uc6.west);
+    \draw[-] (-1,-2) -- (uc7.west);
+    \draw[-] (-1,-2) -- (uc8.west);
+    
+    % Connections — System
+    \draw[-] (11,0) -- (uc6.east);
+    \draw[-] (11,0) -- (uc10.east);
+\end{tikzpicture}
+\caption{Global use case diagram of MediCore AI}
+\label{fig:global_usecase}
+\end{figure}
+
+\section{Project Management with Scrum}
+
+\subsection{Team and Roles}
+
+\begin{table}[H]
+\centering
+\caption{Scrum team composition}
+\label{tab:scrum_team}
+\begin{tabular}{|p{3.5cm}|p{4cm}|p{5.5cm}|}
+\hline
+\textbf{Role} & \textbf{Member} & \textbf{Responsibilities} \\
+\hline
+Product Owner & Dr. Sonia Gaied Fantar & Defines priorities and validates deliverables \\
+\hline
+Scrum Master & Amen Ben Said & Facilitates Scrum process and removes blockers \\
+\hline
+Developer & Amen Ben Said & Full-stack development and testing \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Product Backlog}
+
+\begin{table}[H]
+\centering
+\caption{Product backlog}
+\label{tab:product_backlog}
+\begin{tabular}{|c|p{5.5cm}|c|c|c|}
+\hline
+\textbf{ID} & \textbf{User Story} & \textbf{Priority} & \textbf{Sprint} & \textbf{Effort} \\
+\hline
+US-01 & As a user, I can register an account & High & 1 & 5 \\
+\hline
+US-02 & As a user, I can log in securely & High & 1 & 3 \\
+\hline
+US-03 & As a user, I can manage my profile & Medium & 1 & 3 \\
+\hline
+US-04 & As a user, I can change my password & Medium & 1 & 2 \\
+\hline
+US-05 & As a practitioner, I can add a patient & High & 2 & 5 \\
+\hline
+US-06 & As a practitioner, I can view patient list & High & 2 & 3 \\
+\hline
+US-07 & As a practitioner, I can view patient details & High & 2 & 5 \\
+\hline
+US-08 & As a practitioner, I can create medical records & High & 2 & 5 \\
+\hline
+US-09 & As a practitioner, I can schedule appointments & High & 3 & 5 \\
+\hline
+US-10 & As a practitioner, I can view the calendar & High & 3 & 5 \\
+\hline
+US-11 & As a staff, I can manage appointments & Medium & 3 & 3 \\
+\hline
+US-12 & As a practitioner, I can create invoices & High & 4 & 5 \\
+\hline
+US-13 & As a practitioner, I can record payments & High & 4 & 3 \\
+\hline
+US-14 & As a practitioner, I can view analytics & Medium & 4 & 5 \\
+\hline
+US-15 & As a dentist, I can use the dental chart & Medium & 4 & 3 \\
+\hline
+US-16 & As a vet, I can manage animals & Medium & 4 & 3 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Sprint Planning}
+
+\begin{table}[H]
+\centering
+\caption{Sprint planning overview}
+\label{tab:sprint_planning}
+\begin{tabular}{|c|p{5cm}|c|c|}
+\hline
+\textbf{Sprint} & \textbf{Goal} & \textbf{Duration} & \textbf{Release} \\
+\hline
+Sprint 1 & Authentication \& User Management & 2 weeks & Release 1 \\
+\hline
+Sprint 2 & Patient Management \& Medical Records & 2 weeks & Release 1 \\
+\hline
+Sprint 3 & Appointment Scheduling \& Calendar & 2 weeks & Release 2 \\
+\hline
+Sprint 4 & Billing, Analytics \& Specialized Modules & 3 weeks & Release 2 \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Work Environment}
+
+\subsection{Hardware Environment}
+
+\begin{table}[H]
+\centering
+\caption{Hardware environment}
+\label{tab:hardware}
+\begin{tabular}{|p{4cm}|p{9cm}|}
+\hline
+\textbf{Component} & \textbf{Specification} \\
+\hline
+Computer & MacBook / Laptop \\
+\hline
+Processor & Intel Core i5 / Apple M1 (or equivalent) \\
+\hline
+RAM & 8 GB minimum \\
+\hline
+Storage & 256 GB SSD \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Software Environment}
+
+\begin{table}[H]
+\centering
+\caption{Software tools}
+\label{tab:software}
+\begin{tabular}{|p{4cm}|p{5cm}|p{4cm}|}
+\hline
+\textbf{Tool} & \textbf{Purpose} & \textbf{Version} \\
+\hline
+Visual Studio Code & Code editor & Latest \\
+\hline
+Docker Desktop & Containerization & Latest \\
+\hline
+pgAdmin / DBeaver & Database management & Latest \\
+\hline
+Postman & API testing & Latest \\
+\hline
+Git / GitHub & Version control & Latest \\
+\hline
+Figma & UI/UX design & Web \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Programming Languages}
+
+\begin{table}[H]
+\centering
+\caption{Programming languages used}
+\label{tab:languages}
+\begin{tabular}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Language} & \textbf{Layer} & \textbf{Usage} \\
+\hline
+JavaScript (ES6+) & Full-stack & Primary language for both frontend and backend \\
+\hline
+JSX & Frontend & React component syntax \\
+\hline
+SQL & Database & Database queries and schema definition \\
+\hline
+HTML5 / CSS & Frontend & Structure and styling \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Frameworks and Libraries}
+
+\begin{table}[H]
+\centering
+\caption{Frameworks and libraries}
+\label{tab:frameworks}
+\begin{tabular}{|p{3cm}|p{3cm}|p{7cm}|}
+\hline
+\textbf{Technology} & \textbf{Layer} & \textbf{Purpose} \\
+\hline
+React 18 & Frontend & Component-based UI framework \\
+\hline
+Vite 5 & Frontend & Fast build tool and dev server \\
+\hline
+Tailwind CSS 3 & Frontend & Utility-first CSS framework \\
+\hline
+React Router 6 & Frontend & Client-side routing \\
+\hline
+Zustand 4 & Frontend & Lightweight state management \\
+\hline
+Recharts 2 & Frontend & Data visualization charts \\
+\hline
+Axios & Frontend & HTTP client for API calls \\
+\hline
+Express 4 & Backend & Web application framework \\
+\hline
+pg (node-postgres) & Backend & PostgreSQL client \\
+\hline
+bcryptjs & Backend & Password hashing \\
+\hline
+jsonwebtoken & Backend & JWT generation and verification \\
+\hline
+Multer & Backend & File upload handling \\
+\hline
+Helmet & Backend & HTTP security headers \\
+\hline
+express-validator & Backend & Input validation middleware \\
+\hline
+\end{tabular}
+\end{table}
+
+\section{Architecture}
+
+\subsection{System Architecture}
+
+MediCore AI follows a \textbf{three-tier client--server architecture} fully containerized with Docker Compose. This architecture separates concerns into three distinct layers:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    tier/.style={rectangle, rounded corners=8pt, draw=#1, fill=#1!8, minimum width=12cm, minimum height=2.2cm, font=\small},
+    comp/.style={rectangle, rounded corners=4pt, draw=#1, fill=#1!15, minimum width=3cm, minimum height=1.2cm, text centered, font=\footnotesize},
+    arrow/.style={-{Stealth[length=3mm]}, thick, color=dark}
+]
+    % Tiers
+    \node[tier=accent] (t1) at (0,6) {};
+    \node[font=\bfseries\small, color=accent] at (-4.5,7) {Presentation Tier};
+    
+    \node[tier=primary] (t2) at (0,3) {};
+    \node[font=\bfseries\small, color=primary] at (-4.5,4) {Application Tier};
+    
+    \node[tier=secondary] (t3) at (0,0) {};
+    \node[font=\bfseries\small, color=secondary] at (-4.5,1) {Data Tier};
+    
+    % Components
+    \node[comp=accent] (react) at (-3,6) {React SPA\\(Vite + Tailwind)};
+    \node[comp=accent] (nginx) at (1.5,6) {Nginx\\Web Server};
+    \node[comp=accent] (browser) at (4.5,6) {Web Browser\\Client};
+    
+    \node[comp=primary] (express) at (-3,3) {Express.js\\REST API};
+    \node[comp=primary] (jwt) at (1,3) {JWT Auth\\Middleware};
+    \node[comp=primary] (multer) at (4.5,3) {Multer\\File Handler};
+    
+    \node[comp=secondary] (pg) at (-2,0) {PostgreSQL 15\\Database};
+    \node[comp=secondary] (fs) at (3,0) {File System\\Storage};
+    
+    % Arrows
+    \draw[arrow] (browser) -- (nginx);
+    \draw[arrow] (nginx) -- (react);
+    \draw[arrow] (react.south) -- ++(0,-0.5) -| (express.north);
+    \draw[arrow] (express) -- (jwt);
+    \draw[arrow] (express) -- (multer);
+    \draw[arrow] (express.south) -- ++(0,-0.5) -| (pg.north);
+    \draw[arrow] (multer.south) -- ++(0,-0.5) -| (fs.north);
+\end{tikzpicture}
+\caption{Three-tier system architecture}
+\label{fig:architecture}
+\end{figure}
+
+\begin{itemize}
+    \item \textbf{Presentation Tier:} The React SPA served through an Nginx web server handles the user interface, client-side routing, and state management.
+    \item \textbf{Application Tier:} The Express.js REST API processes business logic, authentication, input validation, and interacts with the data tier.
+    \item \textbf{Data Tier:} PostgreSQL stores all relational data, while the file system manages uploaded documents and images.
+\end{itemize}
+
+\subsection{Application Architecture}
+
+The backend follows a \textbf{modular MVC-inspired architecture} with clear separation of concerns:
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    module/.style={rectangle, rounded corners=4pt, draw=primary, fill=primary!8, minimum width=2.8cm, minimum height=0.9cm, text centered, font=\footnotesize},
+    arrow/.style={-{Stealth[length=2.5mm]}, thick, color=dark}
+]
+    % Client
+    \node[module, fill=accent!15, draw=accent] (client) at (0,4) {React Client};
+    
+    % Express
+    \node[module] (index) at (0,2.5) {index.js (Entry)};
+    
+    % Middleware
+    \node[module, fill=secondary!15, draw=secondary] (auth) at (-3,1) {Auth Middleware};
+    \node[module, fill=secondary!15, draw=secondary] (err) at (3,1) {Error Handler};
+    
+    % Routes
+    \node[module] (r1) at (-4.5,-0.5) {/auth};
+    \node[module] (r2) at (-1.5,-0.5) {/patients};
+    \node[module] (r3) at (1.5,-0.5) {/appointments};
+    \node[module] (r4) at (4.5,-0.5) {/invoices};
+    
+    \node[module] (r5) at (-3,-1.8) {/analytics};
+    \node[module] (r6) at (0,-1.8) {/documents};
+    \node[module] (r7) at (3,-1.8) {/services};
+    
+    % Database
+    \node[module, fill=codegreen!15, draw=codegreen] (db) at (0,-3.3) {database.js (pg Pool)};
+    \node[module, fill=codegreen!15, draw=codegreen] (pg) at (0,-4.5) {PostgreSQL};
+    
+    \draw[arrow] (client) -- (index);
+    \draw[arrow] (index) -- (auth);
+    \draw[arrow] (index) -- (err);
+    \draw[arrow] (index) -- (r1);
+    \draw[arrow] (index) -- (r2);
+    \draw[arrow] (index) -- (r3);
+    \draw[arrow] (index) -- (r4);
+    \draw[arrow] (r1.south) -- ++(0,-0.3) -| (db);
+    \draw[arrow] (r2.south) -- ++(0,-0.3) -| (db);
+    \draw[arrow] (r5.south) -- ++(0,-0.3) -| (db);
+    \draw[arrow] (r7.south) -- ++(0,-0.3) -| (db);
+    \draw[arrow] (db) -- (pg);
+\end{tikzpicture}
+\caption{Backend application architecture}
+\label{fig:app_architecture}
+\end{figure}
+
+\section{Conclusion}
+In this chapter, we specified the functional and non-functional requirements, identified the system actors, modeled the global use case diagram, defined the Scrum product backlog and sprint plan, described the development environment, and presented the system architecture. The next chapters detail the iterative development across two releases.
+
+
+% ============================================================
+%  CHAPTER 3 — RELEASE 1
+% ============================================================
+\chapter{Release 1}
+
+\section{Introduction}
+This chapter presents the first release of MediCore AI, which encompasses the foundational features of the platform. Release 1 consists of two sprints:
+\begin{itemize}
+    \item \textbf{Sprint 1:} Authentication \& User Management
+    \item \textbf{Sprint 2:} Patient Management \& Medical Records
+\end{itemize}
+
+For each sprint, we detail the sprint backlog, UML analysis (use case and sequence diagrams), class design, and implementation with screenshots.
+
+% -------------------------------------------------------
+%  SPRINT 1
+% -------------------------------------------------------
+\section{Sprint 1: Authentication \& User Management}
+
+\subsection{Sprint Backlog}
+
+\begin{table}[H]
+\centering
+\caption{Sprint 1 backlog}
+\label{tab:sprint1_backlog}
+\begin{tabular}{|c|p{7cm}|c|c|}
+\hline
+\textbf{ID} & \textbf{Task} & \textbf{Priority} & \textbf{Status} \\
+\hline
+US-01 & User registration with clinic creation & High & Done \\
+\hline
+US-02 & Secure login with JWT token & High & Done \\
+\hline
+US-03 & View and update user profile & Medium & Done \\
+\hline
+US-04 & Change password functionality & Medium & Done \\
+\hline
+T-01 & Database schema: users, clinics, user\_clinics & High & Done \\
+\hline
+T-02 & JWT authentication middleware & High & Done \\
+\hline
+T-03 & Login \& Register UI pages & High & Done \\
+\hline
+T-04 & Protected route component & High & Done \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Analysis}
+
+\subsubsection{Use Case Diagram — Sprint 1}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.9, transform shape,
+    usecase/.style={ellipse, draw=primary, fill=primary!5, minimum width=3cm, minimum height=1cm, text centered, font=\footnotesize},
+    sysbox/.style={rectangle, draw=dark, dashed, rounded corners=5pt, inner sep=10pt}
+]
+    \node[sysbox, minimum width=8cm, minimum height=8cm] (sys) at (4,0) {};
+    \node[font=\small\bfseries, color=dark] at (4,4.3) {Authentication Module};
+    
+    \umlactor{-1.5}{1}{User}
+    
+    \node[usecase] (uc1) at (4,3) {Register};
+    \node[usecase] (uc2) at (4,1.5) {Login};
+    \node[usecase] (uc3) at (4,0) {View Profile};
+    \node[usecase] (uc4) at (4,-1.5) {Update Profile};
+    \node[usecase] (uc5) at (4,-3) {Change Password};
+    
+    \draw[-] (-1,1) -- (uc1.west);
+    \draw[-] (-1,1) -- (uc2.west);
+    \draw[-] (-1,1) -- (uc3.west);
+    \draw[-] (-1,1) -- (uc4.west);
+    \draw[-] (-1,1) -- (uc5.west);
+    
+    % Include relationships
+    \draw[->, dashed] (uc3) -- node[right, font=\scriptsize] {<<include>>} (uc2);
+    \draw[->, dashed] (uc4) -- node[right, font=\scriptsize] {<<include>>} (uc2);
+    \draw[->, dashed] (uc5) -- node[right, font=\scriptsize] {<<include>>} (uc2);
+\end{tikzpicture}
+\caption{Use case diagram — Sprint 1: Authentication}
+\label{fig:uc_sprint1}
+\end{figure}
+
+\subsubsection{Use Case Description: ``Register''}
+
+\begin{table}[H]
+\centering
+\caption{Textual description — Register use case}
+\label{tab:uc_register}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Use Case} & Register \\
+\hline
+\textbf{Actor} & User (unregistered) \\
+\hline
+\textbf{Preconditions} & The user does not have an existing account. \\
+\hline
+\textbf{Postconditions} & A new user account and associated clinic are created. A JWT token is returned. \\
+\hline
+\textbf{Main Scenario} &
+\begin{enumerate}[leftmargin=*, nosep]
+    \item The user navigates to the registration page.
+    \item The user fills in: email, password, first name, last name, phone, specialty, clinic name, clinic type.
+    \item The system validates all input fields.
+    \item The system checks that the email is not already registered.
+    \item The system hashes the password using bcrypt.
+    \item The system creates the user, clinic, and user-clinic link within a database transaction.
+    \item The system generates a JWT token.
+    \item The system returns the user data and token.
+\end{enumerate} \\
+\hline
+\textbf{Alternative Scenarios} &
+\begin{itemize}[leftmargin=*, nosep]
+    \item 3a. Validation fails $\rightarrow$ Return error with invalid fields.
+    \item 4a. Email exists $\rightarrow$ Return ``Email already registered'' error.
+\end{itemize} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Use Case Description: ``Login''}
+
+\begin{table}[H]
+\centering
+\caption{Textual description — Login use case}
+\label{tab:uc_login}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Use Case} & Login \\
+\hline
+\textbf{Actor} & User (registered) \\
+\hline
+\textbf{Preconditions} & The user has a valid account. \\
+\hline
+\textbf{Postconditions} & User is authenticated and receives a JWT token. \\
+\hline
+\textbf{Main Scenario} &
+\begin{enumerate}[leftmargin=*, nosep]
+    \item The user navigates to the login page.
+    \item The user enters email and password.
+    \item The system validates the input.
+    \item The system retrieves the user with clinic information.
+    \item The system verifies the password against the stored hash.
+    \item The system updates the last\_login timestamp.
+    \item The system generates and returns a JWT token with user data.
+\end{enumerate} \\
+\hline
+\textbf{Alternative Scenarios} &
+\begin{itemize}[leftmargin=*, nosep]
+    \item 4a. User not found $\rightarrow$ Return ``Invalid credentials''.
+    \item 5a. Password mismatch $\rightarrow$ Return ``Invalid credentials''.
+    \item 5b. Account deactivated $\rightarrow$ Return ``Account is deactivated''.
+\end{itemize} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Design}
+
+\subsubsection{Sequence Diagram: Login}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.8, transform shape]
+    % Lifelines
+    \node[rectangle, draw=primary, fill=primary!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (user) at (0,0) {User};
+    \node[rectangle, draw=accent, fill=accent!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (frontend) at (4,0) {React Client};
+    \node[rectangle, draw=secondary, fill=secondary!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (api) at (8,0) {Express API};
+    \node[rectangle, draw=codegreen, fill=codegreen!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (db) at (12,0) {PostgreSQL};
+    
+    % Lifeline bars
+    \draw[dashed, gray] (0,-0.4) -- (0,-11);
+    \draw[dashed, gray] (4,-0.4) -- (4,-11);
+    \draw[dashed, gray] (8,-0.4) -- (8,-11);
+    \draw[dashed, gray] (12,-0.4) -- (12,-11);
+    
+    % Activations
+    \fill[primary!20] (-0.15,-1) rectangle (0.15,-10.5);
+    \fill[accent!20] (3.85,-1.5) rectangle (4.15,-10);
+    \fill[secondary!20] (7.85,-2) rectangle (8.15,-9.5);
+    \fill[codegreen!20] (11.85,-3) rectangle (12.15,-5.5);
+    
+    % Messages
+    \draw[-{Stealth}, thick] (0.15,-1.2) -- node[above, font=\scriptsize] {1: Enter credentials} (3.85,-1.7);
+    \draw[-{Stealth}, thick] (4.15,-2) -- node[above, font=\scriptsize] {2: POST /api/auth/login} (7.85,-2.5);
+    \draw[-{Stealth}, thick] (8.15,-3) -- node[above, font=\scriptsize] {3: SELECT user} (11.85,-3.5);
+    \draw[{Stealth}-, thick, dashed] (8.15,-4.5) -- node[above, font=\scriptsize] {4: User data} (11.85,-5);
+    
+    \node[font=\scriptsize, text=dark, align=left] at (8,-6.2) {5: Verify password};
+    \node[font=\scriptsize, text=dark, align=left] at (8,-7) {6: Generate JWT};
+    
+    \draw[-{Stealth}, thick] (8.15,-7.5) -- node[above, font=\scriptsize] {7: UPDATE last\_login} (11.85,-7.5);
+    
+    \draw[{Stealth}-, thick, dashed] (4.15,-8.5) -- node[above, font=\scriptsize] {8: \{token, user\}} (7.85,-8.5);
+    \draw[{Stealth}-, thick, dashed] (0.15,-9.5) -- node[above, font=\scriptsize] {9: Redirect to Dashboard} (3.85,-9.5);
+\end{tikzpicture}
+\caption{Sequence diagram — Login}
+\label{fig:seq_login}
+\end{figure}
+
+\subsubsection{Sequence Diagram: Register}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.75, transform shape]
+    \node[rectangle, draw=primary, fill=primary!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (user) at (0,0) {User};
+    \node[rectangle, draw=accent, fill=accent!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (frontend) at (4,0) {React Client};
+    \node[rectangle, draw=secondary, fill=secondary!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (api) at (8,0) {Express API};
+    \node[rectangle, draw=codegreen, fill=codegreen!10, minimum width=2cm, minimum height=0.8cm, font=\footnotesize\bfseries] (db) at (12,0) {PostgreSQL};
+    
+    \draw[dashed, gray] (0,-0.4) -- (0,-13);
+    \draw[dashed, gray] (4,-0.4) -- (4,-13);
+    \draw[dashed, gray] (8,-0.4) -- (8,-13);
+    \draw[dashed, gray] (12,-0.4) -- (12,-13);
+    
+    \fill[primary!20] (-0.15,-1) rectangle (0.15,-12.5);
+    \fill[accent!20] (3.85,-1.5) rectangle (4.15,-12);
+    \fill[secondary!20] (7.85,-2) rectangle (8.15,-11.5);
+    \fill[codegreen!20] (11.85,-2.5) rectangle (12.15,-9.5);
+    
+    \draw[-{Stealth}, thick] (0.15,-1.2) -- node[above, font=\scriptsize] {1: Fill registration form} (3.85,-1.7);
+    \draw[-{Stealth}, thick] (4.15,-2) -- node[above, font=\scriptsize] {2: POST /api/auth/register} (7.85,-2.5);
+    \draw[-{Stealth}, thick] (8.15,-3) -- node[above, font=\scriptsize] {3: Check email exists} (11.85,-3.5);
+    \draw[{Stealth}-, thick, dashed] (8.15,-4) -- node[above, font=\scriptsize] {4: No match} (11.85,-4);
+    
+    \node[font=\scriptsize, text=dark] at (8,-5) {5: Hash password (bcrypt)};
+    
+    \draw[-{Stealth}, thick] (8.15,-5.5) -- node[above, font=\scriptsize] {6: BEGIN transaction} (11.85,-5.5);
+    \draw[-{Stealth}, thick] (8.15,-6.5) -- node[above, font=\scriptsize] {7: INSERT user} (11.85,-6.5);
+    \draw[-{Stealth}, thick] (8.15,-7.5) -- node[above, font=\scriptsize] {8: INSERT clinic} (11.85,-7.5);
+    \draw[-{Stealth}, thick] (8.15,-8.5) -- node[above, font=\scriptsize] {9: INSERT user\_clinic} (11.85,-8.5);
+    \draw[-{Stealth}, thick] (8.15,-9.2) -- node[above, font=\scriptsize] {10: COMMIT} (11.85,-9.2);
+    
+    \node[font=\scriptsize, text=dark] at (8,-10) {11: Generate JWT};
+    
+    \draw[{Stealth}-, thick, dashed] (4.15,-10.7) -- node[above, font=\scriptsize] {12: \{token, user, clinic\}} (7.85,-10.7);
+    \draw[{Stealth}-, thick, dashed] (0.15,-11.7) -- node[above, font=\scriptsize] {13: Redirect to Dashboard} (3.85,-11.7);
+\end{tikzpicture}
+\caption{Sequence diagram — Register}
+\label{fig:seq_register}
+\end{figure}
+
+\subsubsection{Class Diagram — Sprint 1}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.85, transform shape,
+    class/.style={rectangle, draw=primary, fill=white, minimum width=4.5cm, font=\footnotesize},
+    classname/.style={rectangle, draw=primary, fill=primary!10, minimum width=4.5cm, minimum height=0.7cm, font=\footnotesize\bfseries, text centered}
+]
+    % User class
+    \node[classname] (un) at (0,0) {User};
+    \node[class, anchor=north, align=left, text width=4.2cm] (ua) at (un.south) {
+        - id : UUID \\
+        - email : String \\
+        - password\_hash : String \\
+        - first\_name : String \\
+        - last\_name : String \\
+        - phone : String \\
+        - role : String \\
+        - specialty : String \\
+        - is\_active : Boolean \\
+        - mfa\_enabled : Boolean
+    };
+    \node[class, anchor=north, align=left, text width=4.2cm] (um) at (ua.south) {
+        + register() \\
+        + login() \\
+        + getProfile() \\
+        + updateProfile() \\
+        + changePassword()
+    };
+    
+    % Clinic class
+    \node[classname] (cn) at (8,0) {Clinic};
+    \node[class, anchor=north, align=left, text width=4.2cm] (ca) at (cn.south) {
+        - id : UUID \\
+        - name : String \\
+        - type : String \\
+        - address : String \\
+        - city : String \\
+        - phone : String \\
+        - email : String \\
+        - settings : JSON \\
+        - is\_active : Boolean
+    };
+    \node[class, anchor=north, align=left, text width=4.2cm] (cm) at (ca.south) {
+        + create() \\
+        + update() \\
+        + getSettings()
+    };
+    
+    % UserClinic class
+    \node[classname] (ucn) at (4,-8) {UserClinic};
+    \node[class, anchor=north, align=left, text width=4.2cm] (uca) at (ucn.south) {
+        - id : UUID \\
+        - user\_id : UUID \\
+        - clinic\_id : UUID \\
+        - role : String \\
+        - permissions : JSON
+    };
+    
+    % Relationships
+    \draw[thick, -{Stealth}] (ua.south -| 2,-5) -- node[left, font=\scriptsize] {1..*} (ucn.north -| 2,-8);
+    \draw[thick, -{Stealth}] (ca.south -| 6,-5) -- node[right, font=\scriptsize] {1..*} (ucn.north -| 6,-8);
+    
+    \node[font=\scriptsize] at (0.5,-5.5) {assigned to};
+    \node[font=\scriptsize] at (7.5,-5.5) {belongs to};
+\end{tikzpicture}
+\caption{Class diagram — Sprint 1: Authentication}
+\label{fig:class_sprint1}
+\end{figure}
+
+\subsection{Implementation}
+
+\subsubsection{Screenshots}
+
+% --- LOGIN PAGE ---
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_login.jpg}
+\caption{Login page interface}
+\label{fig:screen_login}
+\end{figure}
+
+% --- REGISTER PAGE ---
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_register.jpg}
+\caption{Registration page interface}
+\label{fig:screen_register}
+\end{figure}
+
+
+% -------------------------------------------------------
+%  SPRINT 2
+% -------------------------------------------------------
+\section{Sprint 2: Patient Management \& Medical Records}
+
+\subsection{Sprint Backlog}
+
+\begin{table}[H]
+\centering
+\caption{Sprint 2 backlog}
+\label{tab:sprint2_backlog}
+\begin{tabular}{|c|p{7cm}|c|c|}
+\hline
+\textbf{ID} & \textbf{Task} & \textbf{Priority} & \textbf{Status} \\
+\hline
+US-05 & Add new patient with full demographics & High & Done \\
+\hline
+US-06 & List patients with search, sort, and pagination & High & Done \\
+\hline
+US-07 & View detailed patient profile with history & High & Done \\
+\hline
+US-08 & Create and view medical consultation records & High & Done \\
+\hline
+T-05 & Database schema: patients, medical\_records & High & Done \\
+\hline
+T-06 & Patient list page with filters & High & Done \\
+\hline
+T-07 & Patient detail page with tabs & High & Done \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Analysis}
+
+\subsubsection{Use Case Diagram — Sprint 2}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.9, transform shape,
+    usecase/.style={ellipse, draw=primary, fill=primary!5, minimum width=3.2cm, minimum height=1cm, text centered, font=\footnotesize},
+    sysbox/.style={rectangle, draw=dark, dashed, rounded corners=5pt, inner sep=10pt}
+]
+    \node[sysbox, minimum width=8.5cm, minimum height=9cm] (sys) at (4.5,0) {};
+    \node[font=\small\bfseries, color=dark] at (4.5,4.8) {Patient Management Module};
+    
+    \umlactor{-1.5}{1}{Practitioner}
+    
+    \node[usecase] (uc1) at (4.5,3.5) {Add Patient};
+    \node[usecase] (uc2) at (4.5,2) {Search Patients};
+    \node[usecase] (uc3) at (4.5,0.5) {View Patient Details};
+    \node[usecase] (uc4) at (4.5,-1) {Update Patient};
+    \node[usecase] (uc5) at (4.5,-2.5) {Create Medical Record};
+    \node[usecase] (uc6) at (4.5,-3.8) {View Medical History};
+    
+    \draw[-] (-1,1) -- (uc1.west);
+    \draw[-] (-1,1) -- (uc2.west);
+    \draw[-] (-1,1) -- (uc3.west);
+    \draw[-] (-1,1) -- (uc4.west);
+    \draw[-] (-1,1) -- (uc5.west);
+    \draw[-] (-1,1) -- (uc6.west);
+\end{tikzpicture}
+\caption{Use case diagram — Sprint 2: Patient Management}
+\label{fig:uc_sprint2}
+\end{figure}
+
+\subsubsection{Use Case Description: ``Add Patient''}
+
+\begin{table}[H]
+\centering
+\caption{Textual description — Add Patient}
+\label{tab:uc_add_patient}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Use Case} & Add Patient \\
+\hline
+\textbf{Actor} & Practitioner \\
+\hline
+\textbf{Preconditions} & The practitioner is authenticated and associated with a clinic. \\
+\hline
+\textbf{Postconditions} & A new patient record is created with an auto-generated patient number. \\
+\hline
+\textbf{Main Scenario} &
+\begin{enumerate}[leftmargin=*, nosep]
+    \item The practitioner clicks ``Add Patient''.
+    \item The system displays the patient form.
+    \item The practitioner fills in: first name, last name, date of birth, gender, contact information, medical information (allergies, chronic conditions, blood type), and insurance details.
+    \item The system validates required fields.
+    \item The system generates a unique patient number (PAT-XXXXX).
+    \item The system saves the patient linked to the current clinic.
+    \item The system confirms creation and returns patient data.
+\end{enumerate} \\
+\hline
+\textbf{Alternative Scenarios} &
+\begin{itemize}[leftmargin=*, nosep]
+    \item 4a. Required field missing $\rightarrow$ Show validation error.
+    \item 4b. Invalid email format $\rightarrow$ Show format error.
+\end{itemize} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsubsection{Use Case Description: ``Create Medical Record''}
+
+\begin{table}[H]
+\centering
+\caption{Textual description — Create Medical Record}
+\label{tab:uc_create_record}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Use Case} & Create Medical Record \\
+\hline
+\textbf{Actor} & Practitioner \\
+\hline
+\textbf{Preconditions} & The patient exists and the practitioner is authenticated. \\
+\hline
+\textbf{Postconditions} & A new medical record is linked to the patient and practitioner. \\
+\hline
+\textbf{Main Scenario} &
+\begin{enumerate}[leftmargin=*, nosep]
+    \item The practitioner opens a patient's profile.
+    \item The practitioner clicks ``Add Record''.
+    \item The practitioner fills in: record type (consultation, follow-up, emergency), chief complaint, symptoms, diagnosis, treatment plan, prescriptions (JSON), and vital signs (JSON).
+    \item The system saves the record linked to the patient, clinic, and practitioner.
+    \item The system confirms creation.
+\end{enumerate} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Design}
+
+\subsubsection{Sequence Diagram: Add Patient}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.75, transform shape]
+    \node[rectangle, draw=primary, fill=primary!10, minimum width=2cm, minimum height=0.7cm, font=\footnotesize\bfseries] (pract) at (0,0) {Practitioner};
+    \node[rectangle, draw=accent, fill=accent!10, minimum width=2cm, minimum height=0.7cm, font=\footnotesize\bfseries] (react) at (4,0) {React Client};
+    \node[rectangle, draw=secondary, fill=secondary!10, minimum width=2cm, minimum height=0.7cm, font=\footnotesize\bfseries] (api) at (8,0) {Express API};
+    \node[rectangle, draw=codegreen, fill=codegreen!10, minimum width=2cm, minimum height=0.7cm, font=\footnotesize\bfseries] (db) at (12,0) {PostgreSQL};
+    
+    \draw[dashed, gray] (0,-0.4) -- (0,-10);
+    \draw[dashed, gray] (4,-0.4) -- (4,-10);
+    \draw[dashed, gray] (8,-0.4) -- (8,-10);
+    \draw[dashed, gray] (12,-0.4) -- (12,-10);
+    
+    \draw[-{Stealth}, thick] (0.15,-1) -- node[above, font=\scriptsize] {1: Fill patient form} (3.85,-1.5);
+    \draw[-{Stealth}, thick] (4.15,-2) -- node[above, font=\scriptsize] {2: POST /api/patients} (7.85,-2.5);
+    \draw[-{Stealth}, thick] (8.15,-3) -- node[above, font=\scriptsize] {3: Validate + auth check} (8.15,-3);
+    \draw[-{Stealth}, thick] (8.15,-4) -- node[above, font=\scriptsize] {4: COUNT patients} (11.85,-4.5);
+    \draw[{Stealth}-, thick, dashed] (8.15,-5) -- node[above, font=\scriptsize] {5: count} (11.85,-5);
+    \node[font=\scriptsize, text=dark] at (8,-5.8) {6: Generate PAT-XXXXX};
+    \draw[-{Stealth}, thick] (8.15,-6.5) -- node[above, font=\scriptsize] {7: INSERT patient} (11.85,-7);
+    \draw[{Stealth}-, thick, dashed] (8.15,-7.5) -- node[above, font=\scriptsize] {8: Patient created} (11.85,-7.5);
+    \draw[{Stealth}-, thick, dashed] (4.15,-8.5) -- node[above, font=\scriptsize] {9: \{success, patient\}} (7.85,-8.5);
+    \draw[{Stealth}-, thick, dashed] (0.15,-9.2) -- node[above, font=\scriptsize] {10: Show success} (3.85,-9.2);
+\end{tikzpicture}
+\caption{Sequence diagram — Add Patient}
+\label{fig:seq_add_patient}
+\end{figure}
+
+\subsubsection{Class Diagram — Sprint 2}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.78, transform shape,
+    class/.style={rectangle, draw=primary, fill=white, minimum width=4.8cm, font=\footnotesize},
+    classname/.style={rectangle, draw=primary, fill=primary!10, minimum width=4.8cm, minimum height=0.7cm, font=\footnotesize\bfseries, text centered}
+]
+    % Patient class
+    \node[classname] (pn) at (0,0) {Patient};
+    \node[class, anchor=north, align=left, text width=4.5cm] (pa) at (pn.south) {
+        - id : UUID \\
+        - clinic\_id : UUID \\
+        - patient\_number : String \\
+        - first\_name : String \\
+        - last\_name : String \\
+        - date\_of\_birth : Date \\
+        - gender : String \\
+        - email : String \\
+        - phone : String \\
+        - blood\_type : String \\
+        - allergies : Array \\
+        - chronic\_conditions : Array \\
+        - insurance\_provider : String \\
+        - is\_active : Boolean
+    };
+    \node[class, anchor=north, align=left, text width=4.5cm] (pm) at (pa.south) {
+        + create() \\
+        + update() \\
+        + delete() \\
+        + search() \\
+        + getDetails()
+    };
+    
+    % MedicalRecord class
+    \node[classname] (mn) at (8,0) {MedicalRecord};
+    \node[class, anchor=north, align=left, text width=4.5cm] (ma) at (mn.south) {
+        - id : UUID \\
+        - patient\_id : UUID \\
+        - practitioner\_id : UUID \\
+        - record\_type : String \\
+        - chief\_complaint : Text \\
+        - symptoms : Text \\
+        - diagnosis : Text \\
+        - treatment\_plan : Text \\
+        - prescriptions : JSON \\
+        - vital\_signs : JSON \\
+        - ai\_suggestions : JSON \\
+        - is\_ai\_analyzed : Boolean
+    };
+    \node[class, anchor=north, align=left, text width=4.5cm] (mm) at (ma.south) {
+        + create() \\
+        + getByPatient()
+    };
+    
+    % Relationship
+    \draw[thick, -] (pa.east) -- node[above, font=\scriptsize] {1..*} (ma.west);
+    \node[font=\scriptsize] at (4,-3) {has};
+\end{tikzpicture}
+\caption{Class diagram — Sprint 2: Patient \& Medical Records}
+\label{fig:class_sprint2}
+\end{figure}
+
+\subsection{Implementation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_patients.jpg}
+\caption{Patient list interface}
+\label{fig:screen_patients}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_patient_detail.jpg}
+\caption{Patient detail interface}
+\label{fig:screen_patient_detail}
+\end{figure}
+
+\section{Conclusion}
+In this chapter, we completed Release 1 of MediCore AI encompassing the authentication system and patient management module. Sprint 1 delivered secure user registration and login with JWT-based authentication and multi-clinic support. Sprint 2 delivered comprehensive patient CRUD operations and medical record management. The next chapter presents Release 2, covering appointment scheduling, billing, and specialized modules.
+
+
+% ============================================================
+%  CHAPTER 4 — RELEASE 2
+% ============================================================
+\chapter{Release 2}
+
+\section{Introduction}
+This chapter presents the second release of MediCore AI, which builds upon the foundation established in Release 1. Release 2 consists of:
+\begin{itemize}
+    \item \textbf{Sprint 3:} Appointment Scheduling \& Calendar
+    \item \textbf{Sprint 4:} Billing, Analytics \& Specialized Modules
+\end{itemize}
+
+% -------------------------------------------------------
+%  SPRINT 3
+% -------------------------------------------------------
+\section{Sprint 3: Appointment Scheduling \& Calendar}
+
+\subsection{Sprint Backlog}
+
+\begin{table}[H]
+\centering
+\caption{Sprint 3 backlog}
+\label{tab:sprint3_backlog}
+\begin{tabular}{|c|p{7cm}|c|c|}
+\hline
+\textbf{ID} & \textbf{Task} & \textbf{Priority} & \textbf{Status} \\
+\hline
+US-09 & Create appointment with patient, time, and room & High & Done \\
+\hline
+US-10 & View calendar with weekly/monthly views & High & Done \\
+\hline
+US-11 & Update and cancel appointments & Medium & Done \\
+\hline
+T-08 & Database schema: appointments, reminders & High & Done \\
+\hline
+T-09 & Calendar UI component & High & Done \\
+\hline
+T-10 & Appointment list with filters & Medium & Done \\
+\hline
+T-11 & Today's appointment summary API & Medium & Done \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Analysis}
+
+\subsubsection{Use Case Diagram — Sprint 3}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.9, transform shape,
+    usecase/.style={ellipse, draw=primary, fill=primary!5, minimum width=3.2cm, minimum height=1cm, text centered, font=\footnotesize},
+    sysbox/.style={rectangle, draw=dark, dashed, rounded corners=5pt, inner sep=10pt}
+]
+    \node[sysbox, minimum width=9cm, minimum height=8cm] (sys) at (5,0) {};
+    \node[font=\small\bfseries, color=dark] at (5,4.3) {Appointment Module};
+    
+    \umlactor{-1.5}{1}{Practitioner}
+    \umlactor{11.5}{1}{Staff}
+    
+    \node[usecase] (uc1) at (5,3) {Create Appointment};
+    \node[usecase] (uc2) at (5,1.5) {View Calendar};
+    \node[usecase] (uc3) at (5,0) {Update Appointment};
+    \node[usecase] (uc4) at (5,-1.5) {Cancel Appointment};
+    \node[usecase] (uc5) at (5,-3) {View Today's Summary};
+    
+    \draw[-] (-1,1) -- (uc1.west);
+    \draw[-] (-1,1) -- (uc2.west);
+    \draw[-] (-1,1) -- (uc3.west);
+    \draw[-] (-1,1) -- (uc4.west);
+    \draw[-] (-1,1) -- (uc5.west);
+    
+    \draw[-] (11,1) -- (uc1.east);
+    \draw[-] (11,1) -- (uc2.east);
+    \draw[-] (11,1) -- (uc3.east);
+\end{tikzpicture}
+\caption{Use case diagram — Sprint 3: Appointments}
+\label{fig:uc_sprint3}
+\end{figure}
+
+\subsubsection{Use Case Description: ``Create Appointment''}
+
+\begin{table}[H]
+\centering
+\caption{Textual description — Create Appointment}
+\label{tab:uc_create_appt}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Use Case} & Create Appointment \\
+\hline
+\textbf{Actors} & Practitioner, Staff \\
+\hline
+\textbf{Preconditions} & User is authenticated. Patient exists in the system. \\
+\hline
+\textbf{Postconditions} & A new appointment is created and visible on the calendar. \\
+\hline
+\textbf{Main Scenario} &
+\begin{enumerate}[leftmargin=*, nosep]
+    \item The user clicks ``New Appointment''.
+    \item The user selects a patient from the dropdown.
+    \item The user chooses: appointment type, date/time (start and end), room, and optionally assigns a practitioner.
+    \item The system validates that start time is before end time.
+    \item The system saves the appointment linked to the clinic.
+    \item The appointment appears on the calendar.
+\end{enumerate} \\
+\hline
+\textbf{Alternative Scenarios} &
+\begin{itemize}[leftmargin=*, nosep]
+    \item 4a. Invalid time range $\rightarrow$ Show validation error.
+    \item 2a. Patient not found $\rightarrow$ Prompt to create new patient.
+\end{itemize} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Design}
+
+\subsubsection{Sequence Diagram: Create Appointment}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.75, transform shape]
+    \node[rectangle, draw=primary, fill=primary!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (user) at (0,0) {User};
+    \node[rectangle, draw=accent, fill=accent!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (react) at (4,0) {React};
+    \node[rectangle, draw=secondary, fill=secondary!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (api) at (8,0) {API};
+    \node[rectangle, draw=codegreen, fill=codegreen!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (db) at (12,0) {Database};
+    
+    \draw[dashed, gray] (0,-0.4) -- (0,-9);
+    \draw[dashed, gray] (4,-0.4) -- (4,-9);
+    \draw[dashed, gray] (8,-0.4) -- (8,-9);
+    \draw[dashed, gray] (12,-0.4) -- (12,-9);
+    
+    \draw[-{Stealth}, thick] (0.15,-1) -- node[above, font=\scriptsize] {1: Fill appointment form} (3.85,-1.5);
+    \draw[-{Stealth}, thick] (4.15,-2) -- node[above, font=\scriptsize] {2: POST /api/appointments} (7.85,-2.5);
+    \node[font=\scriptsize, text=dark] at (8,-3.3) {3: Validate input};
+    \node[font=\scriptsize, text=dark] at (8,-3.9) {4: Auth check (JWT)};
+    \draw[-{Stealth}, thick] (8.15,-4.5) -- node[above, font=\scriptsize] {5: INSERT appointment} (11.85,-5);
+    \draw[{Stealth}-, thick, dashed] (8.15,-5.8) -- node[above, font=\scriptsize] {6: Created record} (11.85,-5.8);
+    \draw[{Stealth}-, thick, dashed] (4.15,-6.8) -- node[above, font=\scriptsize] {7: \{success, appointment\}} (7.85,-6.8);
+    \draw[{Stealth}-, thick, dashed] (0.15,-7.8) -- node[above, font=\scriptsize] {8: Update calendar view} (3.85,-7.8);
+\end{tikzpicture}
+\caption{Sequence diagram — Create Appointment}
+\label{fig:seq_create_appt}
+\end{figure}
+
+\subsubsection{Class Diagram — Sprint 3}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.82, transform shape,
+    class/.style={rectangle, draw=primary, fill=white, minimum width=4.8cm, font=\footnotesize},
+    classname/.style={rectangle, draw=primary, fill=primary!10, minimum width=4.8cm, minimum height=0.7cm, font=\footnotesize\bfseries, text centered}
+]
+    % Appointment class
+    \node[classname] (an) at (0,0) {Appointment};
+    \node[class, anchor=north, align=left, text width=4.5cm] (aa) at (an.south) {
+        - id : UUID \\
+        - clinic\_id : UUID \\
+        - patient\_id : UUID \\
+        - practitioner\_id : UUID \\
+        - appointment\_type : String \\
+        - title : String \\
+        - start\_time : DateTime \\
+        - end\_time : DateTime \\
+        - duration\_minutes : Integer \\
+        - status : String \\
+        - room : String \\
+        - color : String \\
+        - no\_show\_probability : Decimal
+    };
+    \node[class, anchor=north, align=left, text width=4.5cm] (am) at (aa.south) {
+        + create() \\
+        + update() \\
+        + delete() \\
+        + getCalendar() \\
+        + getTodaySummary()
+    };
+    
+    % AppointmentReminder
+    \node[classname] (rn) at (8,-2) {AppointmentReminder};
+    \node[class, anchor=north, align=left, text width=4.5cm] (ra) at (rn.south) {
+        - id : UUID \\
+        - appointment\_id : UUID \\
+        - reminder\_type : String \\
+        - scheduled\_for : DateTime \\
+        - status : String
+    };
+    
+    % Relationship
+    \draw[thick, -{Stealth}] (aa.east) -- node[above, font=\scriptsize] {0..*} (rn.west);
+\end{tikzpicture}
+\caption{Class diagram — Sprint 3: Appointments}
+\label{fig:class_sprint3}
+\end{figure}
+
+\subsection{Implementation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_calendar.jpg}
+\caption{Calendar interface}
+\label{fig:screen_calendar}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_appointments.jpg}
+\caption{Appointments list interface}
+\label{fig:screen_appointments}
+\end{figure}
+
+
+% -------------------------------------------------------
+%  SPRINT 4
+% -------------------------------------------------------
+\section{Sprint 4: Billing, Analytics \& Specialized Modules}
+
+\subsection{Sprint Backlog}
+
+\begin{table}[H]
+\centering
+\caption{Sprint 4 backlog}
+\label{tab:sprint4_backlog}
+\begin{tabular}{|c|p{7cm}|c|c|}
+\hline
+\textbf{ID} & \textbf{Task} & \textbf{Priority} & \textbf{Status} \\
+\hline
+US-12 & Create invoices with line items & High & Done \\
+\hline
+US-13 & Record payments against invoices & High & Done \\
+\hline
+US-14 & View analytics dashboard (revenue, stats) & Medium & Done \\
+\hline
+US-15 & Dental chart module & Medium & Done \\
+\hline
+US-16 & Veterinary module (animals) & Medium & Done \\
+\hline
+T-12 & Database: invoices, payments, services & High & Done \\
+\hline
+T-13 & Analytics and Dashboard pages & Medium & Done \\
+\hline
+T-14 & Dental and Aesthetic module pages & Medium & Done \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Analysis}
+
+\subsubsection{Use Case Diagram — Sprint 4}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.85, transform shape,
+    usecase/.style={ellipse, draw=primary, fill=primary!5, minimum width=3cm, minimum height=0.9cm, text centered, font=\footnotesize, inner sep=1pt},
+    sysbox/.style={rectangle, draw=dark, dashed, rounded corners=5pt, inner sep=10pt}
+]
+    \node[sysbox, minimum width=9cm, minimum height=11cm] (sys) at (5,0) {};
+    \node[font=\small\bfseries, color=dark] at (5,5.8) {Billing \& Modules};
+    
+    \umlactor{-1.5}{2}{Practitioner}
+    \umlactor{-1.5}{-2}{Administrator}
+    
+    \node[usecase] (uc1) at (5,4.5) {Create Invoice};
+    \node[usecase] (uc2) at (5,3) {Record Payment};
+    \node[usecase] (uc3) at (5,1.5) {Manage Services};
+    \node[usecase] (uc4) at (5,0) {View Dashboard};
+    \node[usecase] (uc5) at (5,-1.5) {View Analytics};
+    \node[usecase] (uc6) at (5,-3) {Use Dental Chart};
+    \node[usecase] (uc7) at (5,-4.5) {Manage Animals};
+    
+    \draw[-] (-1,2) -- (uc1.west);
+    \draw[-] (-1,2) -- (uc2.west);
+    \draw[-] (-1,2) -- (uc4.west);
+    \draw[-] (-1,2) -- (uc6.west);
+    \draw[-] (-1,2) -- (uc7.west);
+    
+    \draw[-] (-1,-2) -- (uc3.west);
+    \draw[-] (-1,-2) -- (uc4.west);
+    \draw[-] (-1,-2) -- (uc5.west);
+\end{tikzpicture}
+\caption{Use case diagram — Sprint 4: Billing \& Specialized Modules}
+\label{fig:uc_sprint4}
+\end{figure}
+
+\subsubsection{Use Case Description: ``Create Invoice''}
+
+\begin{table}[H]
+\centering
+\caption{Textual description — Create Invoice}
+\label{tab:uc_create_invoice}
+\begin{tabular}{|p{3.5cm}|p{9.5cm}|}
+\hline
+\textbf{Use Case} & Create Invoice \\
+\hline
+\textbf{Actor} & Practitioner \\
+\hline
+\textbf{Preconditions} & Patient exists. Services are defined in the catalog. \\
+\hline
+\textbf{Postconditions} & An invoice with auto-generated number is created with calculated totals. \\
+\hline
+\textbf{Main Scenario} &
+\begin{enumerate}[leftmargin=*, nosep]
+    \item The practitioner selects a patient.
+    \item The practitioner adds line items (service, quantity, unit price, tax rate).
+    \item The system calculates subtotal, tax, and total in real-time.
+    \item The practitioner sets the due date and optional notes.
+    \item The system creates the invoice within a database transaction (BEGIN $\rightarrow$ INSERT invoice $\rightarrow$ INSERT items $\rightarrow$ COMMIT).
+    \item The system generates invoice number (INV-YYYY-XXXXX).
+\end{enumerate} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Design}
+
+\subsubsection{Sequence Diagram: Create Invoice}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.72, transform shape]
+    \node[rectangle, draw=primary, fill=primary!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (user) at (0,0) {Practitioner};
+    \node[rectangle, draw=accent, fill=accent!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (react) at (4,0) {React};
+    \node[rectangle, draw=secondary, fill=secondary!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (api) at (8,0) {API};
+    \node[rectangle, draw=codegreen, fill=codegreen!10, minimum width=1.8cm, minimum height=0.7cm, font=\footnotesize\bfseries] (db) at (12,0) {Database};
+    
+    \draw[dashed, gray] (0,-0.4) -- (0,-12);
+    \draw[dashed, gray] (4,-0.4) -- (4,-12);
+    \draw[dashed, gray] (8,-0.4) -- (8,-12);
+    \draw[dashed, gray] (12,-0.4) -- (12,-12);
+    
+    \draw[-{Stealth}, thick] (0.15,-1) -- node[above, font=\scriptsize] {1: Select patient + items} (3.85,-1.5);
+    \draw[-{Stealth}, thick] (4.15,-2) -- node[above, font=\scriptsize] {2: POST /api/invoices} (7.85,-2.5);
+    \node[font=\scriptsize, text=dark] at (8,-3.3) {3: Calculate totals};
+    \draw[-{Stealth}, thick] (8.15,-4) -- node[above, font=\scriptsize] {4: BEGIN} (11.85,-4);
+    \draw[-{Stealth}, thick] (8.15,-5) -- node[above, font=\scriptsize] {5: COUNT invoices} (11.85,-5);
+    \draw[{Stealth}-, thick, dashed] (8.15,-5.7) -- node[above, font=\scriptsize] {6: count} (11.85,-5.7);
+    \node[font=\scriptsize, text=dark] at (8,-6.4) {7: Generate INV number};
+    \draw[-{Stealth}, thick] (8.15,-7) -- node[above, font=\scriptsize] {8: INSERT invoice} (11.85,-7);
+    \draw[-{Stealth}, thick] (8.15,-7.8) -- node[above, font=\scriptsize] {9: INSERT items (loop)} (11.85,-7.8);
+    \draw[-{Stealth}, thick] (8.15,-8.6) -- node[above, font=\scriptsize] {10: COMMIT} (11.85,-8.6);
+    \draw[{Stealth}-, thick, dashed] (4.15,-9.5) -- node[above, font=\scriptsize] {11: \{success, invoice\}} (7.85,-9.5);
+    \draw[{Stealth}-, thick, dashed] (0.15,-10.5) -- node[above, font=\scriptsize] {12: Show invoice} (3.85,-10.5);
+\end{tikzpicture}
+\caption{Sequence diagram — Create Invoice}
+\label{fig:seq_create_invoice}
+\end{figure}
+
+\subsubsection{Class Diagram — Sprint 4}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.72, transform shape,
+    class/.style={rectangle, draw=primary, fill=white, minimum width=4.2cm, font=\footnotesize},
+    classname/.style={rectangle, draw=primary, fill=primary!10, minimum width=4.2cm, minimum height=0.6cm, font=\footnotesize\bfseries, text centered}
+]
+    % Invoice
+    \node[classname] (in) at (0,0) {Invoice};
+    \node[class, anchor=north, align=left, text width=4cm] (ia) at (in.south) {
+        - id : UUID \\
+        - invoice\_number : String \\
+        - patient\_id : UUID \\
+        - status : String \\
+        - subtotal : Decimal \\
+        - tax\_amount : Decimal \\
+        - total\_amount : Decimal \\
+        - paid\_amount : Decimal \\
+        - due\_date : Date
+    };
+    
+    % InvoiceItem
+    \node[classname] (iin) at (7,0) {InvoiceItem};
+    \node[class, anchor=north, align=left, text width=4cm] (iia) at (iin.south) {
+        - id : UUID \\
+        - invoice\_id : UUID \\
+        - service\_id : UUID \\
+        - description : String \\
+        - quantity : Integer \\
+        - unit\_price : Decimal \\
+        - tax\_rate : Decimal \\
+        - total : Decimal
+    };
+    
+    % Payment
+    \node[classname] (pn) at (0,-6.5) {Payment};
+    \node[class, anchor=north, align=left, text width=4cm] (paa) at (pn.south) {
+        - id : UUID \\
+        - invoice\_id : UUID \\
+        - amount : Decimal \\
+        - payment\_method : String \\
+        - payment\_date : DateTime \\
+        - reference\_number : String
+    };
+    
+    % Service
+    \node[classname] (sn) at (7,-6.5) {Service};
+    \node[class, anchor=north, align=left, text width=4cm] (sa) at (sn.south) {
+        - id : UUID \\
+        - code : String \\
+        - name : String \\
+        - category : String \\
+        - default\_price : Decimal \\
+        - duration\_minutes : Integer
+    };
+    
+    % Relationships
+    \draw[thick, -{Stealth}] (ia.east) -- node[above, font=\scriptsize] {1..*} (iia.west);
+    \draw[thick, -{Stealth}] (ia.south) -- node[left, font=\scriptsize] {0..*} (pn.north);
+    \draw[thick, -{Stealth}] (iia.south) -- node[right, font=\scriptsize] {1} (sn.north);
+\end{tikzpicture}
+\caption{Class diagram — Sprint 4: Billing}
+\label{fig:class_sprint4}
+\end{figure}
+
+\subsubsection{Global Class Diagram}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.62, transform shape,
+    cn/.style={rectangle, draw=primary, fill=primary!10, rounded corners=2pt, minimum width=3cm, minimum height=0.6cm, font=\scriptsize\bfseries, text centered}
+]
+    % Classes
+    \node[cn] (user) at (0,8) {User};
+    \node[cn] (clinic) at (8,8) {Clinic};
+    \node[cn] (userclinic) at (4,6) {UserClinic};
+    \node[cn] (patient) at (0,4) {Patient};
+    \node[cn] (animal) at (-4,2) {Animal};
+    \node[cn] (record) at (4,2) {MedicalRecord};
+    \node[cn] (appointment) at (8,4) {Appointment};
+    \node[cn] (invoice) at (0,0) {Invoice};
+    \node[cn] (item) at (4,-2) {InvoiceItem};
+    \node[cn] (payment) at (-4,-2) {Payment};
+    \node[cn] (service) at (8,0) {Service};
+    \node[cn] (document) at (-4,4) {Document};
+    \node[cn] (dental) at (8,2) {DentalChart};
+    \node[cn] (aesthetic) at (12,2) {AestheticRecord};
+    \node[cn] (vaccine) at (-4,0) {Vaccination};
+    \node[cn] (daily) at (12,4) {DailyStats};
+    
+    % Key relationships
+    \draw[thick] (user) -- (userclinic);
+    \draw[thick] (clinic) -- (userclinic);
+    \draw[thick] (clinic) -- (patient);
+    \draw[thick] (patient) -- (animal);
+    \draw[thick] (patient) -- (record);
+    \draw[thick] (patient) -- (appointment);
+    \draw[thick] (patient) -- (invoice);
+    \draw[thick] (patient) -- (document);
+    \draw[thick] (invoice) -- (item);
+    \draw[thick] (invoice) -- (payment);
+    \draw[thick] (item) -- (service);
+    \draw[thick] (clinic) -- (service);
+    \draw[thick] (clinic) -- (appointment);
+    \draw[thick] (patient) -- (dental);
+    \draw[thick] (patient) -- (aesthetic);
+    \draw[thick] (animal) -- (vaccine);
+    \draw[thick] (clinic) -- (daily);
+    \draw[thick] (user) -- (appointment);
+\end{tikzpicture}
+\caption{Simplified global class diagram of MediCore AI}
+\label{fig:global_class}
+\end{figure}
+
+\subsubsection{Data Dictionary}
+
+\begin{longtable}{|p{3cm}|p{3cm}|p{2.5cm}|p{4.5cm}|}
+\caption{Data dictionary — Key entities and attributes} \label{tab:data_dict} \\
+\hline
+\textbf{Entity} & \textbf{Attribute} & \textbf{Type} & \textbf{Description} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Entity} & \textbf{Attribute} & \textbf{Type} & \textbf{Description} \\
+\hline
+\endhead
+User & id & UUID & Primary key \\
+\cline{2-4}
+ & email & VARCHAR(255) & Unique login email \\
+\cline{2-4}
+ & password\_hash & VARCHAR(255) & Bcrypt hashed password \\
+\cline{2-4}
+ & role & VARCHAR(50) & admin, practitioner, staff \\
+\hline
+Patient & id & UUID & Primary key \\
+\cline{2-4}
+ & patient\_number & VARCHAR(50) & Auto-generated (PAT-XXXXX) \\
+\cline{2-4}
+ & allergies & TEXT[] & Array of known allergies \\
+\cline{2-4}
+ & blood\_type & VARCHAR(10) & A+, A-, B+, B-, AB+, O+, etc. \\
+\hline
+Appointment & id & UUID & Primary key \\
+\cline{2-4}
+ & status & VARCHAR(50) & scheduled, completed, cancelled \\
+\cline{2-4}
+ & no\_show\_probability & DECIMAL & AI-predicted no-show risk \\
+\hline
+Invoice & id & UUID & Primary key \\
+\cline{2-4}
+ & invoice\_number & VARCHAR(50) & Auto (INV-YYYY-XXXXX) \\
+\cline{2-4}
+ & status & VARCHAR(50) & draft, sent, paid, partial, overdue \\
+\hline
+Animal & id & UUID & Primary key \\
+\cline{2-4}
+ & species & VARCHAR(50) & Dog, Cat, Bird, etc. \\
+\cline{2-4}
+ & microchip\_number & VARCHAR(50) & Unique microchip ID \\
+\hline
+\end{longtable}
+
+\subsection{Implementation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_dashboard.jpg}
+\caption{Dashboard interface}
+\label{fig:screen_dashboard}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_invoices.jpg}
+\caption{Invoice management interface}
+\label{fig:screen_invoices}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_analytics.jpg}
+\caption{Analytics dashboard interface}
+\label{fig:screen_analytics}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{screen_dental.jpg}
+\caption{Dental module interface}
+\label{fig:screen_dental}
+\end{figure}
+
+\section{Conclusion}
+In this chapter, we completed Release 2 of MediCore AI. Sprint 3 delivered the appointment scheduling system with a calendar interface, daily summaries, and appointment management. Sprint 4 delivered the billing system with transactional invoice creation and payment tracking, analytics dashboards with data visualizations, and the specialized modules for dentistry, veterinary, and aesthetic medicine. The platform is now functionally complete.
+
+
+% ============================================================
+%  GENERAL CONCLUSION
+% ============================================================
+\chapter*{General Conclusion and Perspectives}
+\addcontentsline{toc}{chapter}{General Conclusion and Perspectives}
+\markboth{General Conclusion and Perspectives}{}
+
+\section*{Conclusion}
+
+This report documented the complete design and development of \textbf{MediCore AI}, an AI-powered SaaS platform for medical practice management. The project aimed to address the fragmentation and inefficiency of existing healthcare management tools by delivering a unified, modular, and intelligent solution.
+
+Following the \textbf{Scrum agile methodology}, the development was organized into two releases comprising four sprints:
+
+\begin{itemize}
+    \item \textbf{Release 1} established the authentication system with JWT security, multi-clinic user management, and comprehensive patient record management with medical consultation tracking.
+    \item \textbf{Release 2} built upon this foundation by adding appointment scheduling with a calendar interface, a complete billing system with invoice generation and payment management, analytics dashboards, and specialized modules for dental, veterinary, and aesthetic practices.
+\end{itemize}
+
+The platform was built using a modern technology stack---React.js for the frontend, Node.js/Express for the backend API, and PostgreSQL for data persistence---following a three-tier architecture fully containerized with Docker for consistent deployment.
+
+Key technical achievements include:
+\begin{itemize}
+    \item A \textbf{multi-tenant architecture} ensuring secure data separation between clinics.
+    \item \textbf{Transactional database operations} guaranteeing data integrity for critical operations like billing and registration.
+    \item \textbf{Role-based access control} with JWT authentication and middleware protection.
+    \item \textbf{Schema-level AI readiness} with dedicated columns and tables for AI predictions and analysis results.
+\end{itemize}
+
+\section*{Perspectives}
+
+While MediCore AI is now functionally complete as a minimum viable product, several enhancements could further strengthen the platform:
+
+\begin{enumerate}
+    \item \textbf{AI Implementation:} Activate the predictive scheduling engine to forecast no-show probabilities using historical appointment data. Implement NLP-based medical note analysis for diagnostic assistance.
+    \item \textbf{Real-time Features:} Integrate WebSocket communication for live appointment updates and in-app notifications.
+    \item \textbf{Mobile Application:} Develop a React Native companion app for on-the-go access by practitioners.
+    \item \textbf{Teleconsultation:} Add video consultation capabilities with WebRTC integration.
+    \item \textbf{Advanced BI:} Connect to a dedicated data warehouse for complex analytical queries and automated report generation.
+    \item \textbf{Compliance \& Certification:} Obtain HDS (Hébergeur de Données de Santé) certification for production deployment in regulated healthcare environments.
+    \item \textbf{Patient Portal:} Build a secure patient-facing portal for appointment booking, document access, and communication.
+\end{enumerate}
+
+
+% ============================================================
+%  BIBLIOGRAPHY
+% ============================================================
+\chapter*{Bibliography}
+\addcontentsline{toc}{chapter}{Bibliography}
+\markboth{Bibliography}{}
+
+\begin{enumerate}[label={[\arabic*]}]
+    \item Schwaber K., Sutherland J., ``The Scrum Guide'', Scrum.org, 2020.
+    \item Fowler M., ``UML Distilled: A Brief Guide to the Standard Object Modeling Language'', Addison-Wesley, 3rd Edition, 2003.
+    \item Flanagan D., ``JavaScript: The Definitive Guide'', O'Reilly Media, 7th Edition, 2020.
+    \item Accomazzo A., Murray N., Lerner A., ``Fullstack React: The Complete Guide to ReactJS and Friends'', Fullstack.io, 2020.
+    \item Brown E., ``Web Development with Node and Express'', O'Reilly Media, 2nd Edition, 2019.
+    \item Momjian B., ``PostgreSQL: Introduction and Concepts'', Addison-Wesley, 2001.
+    \item React Documentation, ``React --- A JavaScript library for building user interfaces'', \url{https://react.dev}, consulted April 2025.
+    \item Express.js Documentation, ``Express --- Node.js web application framework'', \url{https://expressjs.com}, consulted April 2025.
+    \item PostgreSQL Documentation, ``PostgreSQL 15 Documentation'', \url{https://www.postgresql.org/docs/15/}, consulted April 2025.
+    \item Docker Documentation, ``Docker Docs'', \url{https://docs.docker.com}, consulted April 2025.
+    \item Zustand GitHub, ``Zustand --- Bear necessities for state management in React'', \url{https://github.com/pmndrs/zustand}, consulted April 2025.
+    \item Tailwind CSS Documentation, \url{https://tailwindcss.com/docs}, consulted April 2025.
+    \item JSON Web Tokens, ``Introduction to JSON Web Tokens'', \url{https://jwt.io/introduction}, consulted April 2025.
+    \item Recharts Documentation, ``Recharts --- A composable charting library'', \url{https://recharts.org}, consulted April 2025.
+\end{enumerate}
+
+
+% ============================================================
+%  ANNEXES (optional)
+% ============================================================
+\appendix
+\chapter{Database Schema}
+
+The complete SQL schema used to initialize the PostgreSQL database is provided below. This script creates all tables, indexes, and seed data.
+
+\begin{lstlisting}[language=SQL, caption={Extract of init.sql — Core tables}, label={lst:schema}]
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'practitioner',
+    specialty VARCHAR(100),
+    is_active BOOLEAN DEFAULT true,
+    mfa_enabled BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE clinics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    address TEXT,
+    city VARCHAR(100),
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE patients (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+    patient_number VARCHAR(50),
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE,
+    gender VARCHAR(20),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    blood_type VARCHAR(10),
+    allergies TEXT[],
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE appointments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    practitioner_id UUID REFERENCES users(id),
+    appointment_type VARCHAR(100) NOT NULL,
+    start_time TIMESTAMP NOT NULL,
+    end_time TIMESTAMP NOT NULL,
+    status VARCHAR(50) DEFAULT 'scheduled',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE invoices (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    invoice_number VARCHAR(50) UNIQUE NOT NULL,
+    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+\end{lstlisting}
+
+\chapter{Docker Compose Configuration}
+
+\begin{lstlisting}[language=bash, caption={docker-compose.yml}, label={lst:docker}]
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: medicore_db
+    environment:
+      POSTGRES_USER: medicore_user
+      POSTGRES_PASSWORD: medicore_secure_password
+      POSTGRES_DB: medicore_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medicore_user"]
+      interval: 10s
+
+  backend:
+    build: ./backend
+    container_name: medicore_backend
+    environment:
+      DATABASE_URL: postgresql://medicore_user:...@postgres:5432/medicore_db
+      JWT_SECRET: medicore_jwt_secret_key
+    ports:
+      - "5101:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: medicore_frontend
+    ports:
+      - "3100:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+\end{lstlisting}
+
+\end{document}

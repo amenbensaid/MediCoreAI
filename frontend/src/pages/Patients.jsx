@@ -38,7 +38,7 @@ const Patients = () => {
                     <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                     </svg>
-                    Nouveau Patient
+                    New Patient
                 </button>
             </div>
 
@@ -51,16 +51,16 @@ const Patients = () => {
                         </svg>
                         <input
                             type="text"
-                            placeholder="Rechercher un patient..."
+                            placeholder="Search patients..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-dark-700 border-0 rounded-xl text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-primary-500"
                         />
                     </div>
                     <select className="px-4 py-3 bg-gray-50 dark:bg-dark-700 border-0 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500">
-                        <option>Tous les statuts</option>
-                        <option>Actifs</option>
-                        <option>Inactifs</option>
+                        <option>All statuses</option>
+                        <option>Active</option>
+                        <option>Inactive</option>
                     </select>
                 </div>
             </div>
@@ -76,8 +76,8 @@ const Patients = () => {
                         <svg className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Aucun patient trouvé</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Commencez par ajouter votre premier patient</p>
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">No patients found</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Start by adding your first patient</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
@@ -86,9 +86,9 @@ const Patients = () => {
                                 <tr>
                                     <th className="table-header">Patient</th>
                                     <th className="table-header">Contact</th>
-                                    <th className="table-header">Date de naissance</th>
-                                    <th className="table-header">RDV</th>
-                                    <th className="table-header">Statut</th>
+                                    <th className="table-header">Date of Birth</th>
+                                    <th className="table-header">Appts</th>
+                                    <th className="table-header">Status</th>
                                     <th className="table-header">Actions</th>
                                 </tr>
                             </thead>
@@ -116,11 +116,11 @@ const Patients = () => {
                                             {patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString('fr-FR') : '-'}
                                         </td>
                                         <td className="table-cell">
-                                            <span className="badge badge-info">{patient.appointmentCount} RDV</span>
+                                            <span className="badge badge-info">{patient.appointmentCount} Appts</span>
                                         </td>
                                         <td className="table-cell">
                                             <span className={`badge ${patient.isActive ? 'badge-success' : 'badge-neutral'}`}>
-                                                {patient.isActive ? 'Actif' : 'Inactif'}
+                                                {patient.isActive ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
                                         <td className="table-cell">
@@ -131,11 +131,11 @@ const Patients = () => {
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                                     </svg>
                                                 </Link>
-                                                <button className="p-2 text-gray-500 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg transition-colors">
+                                                <Link to={`/appointments`} className="p-2 text-gray-500 hover:text-primary-500 hover:bg-gray-100 dark:hover:bg-dark-700 rounded-lg transition-colors" title="Schedule appointment">
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                     </svg>
-                                                </button>
+                                                </Link>
                                             </div>
                                         </td>
                                     </tr>
@@ -177,7 +177,7 @@ const AddPatientModal = ({ onClose, onSuccess }) => {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content p-6" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Nouveau Patient</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">New Patient</h2>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -188,12 +188,12 @@ const AddPatientModal = ({ onClose, onSuccess }) => {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Prénom</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
                             <input type="text" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })}
                                 className="input-field" required />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nom</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
                             <input type="text" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })}
                                 className="input-field" required />
                         </div>
@@ -204,29 +204,29 @@ const AddPatientModal = ({ onClose, onSuccess }) => {
                             className="input-field" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Téléphone</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Phone</label>
                         <input type="tel" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })}
                             className="input-field" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date de naissance</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of Birth</label>
                             <input type="date" value={formData.dateOfBirth} onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
                                 className="input-field" />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Genre</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
                             <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value })} className="input-field">
-                                <option value="">Sélectionner</option>
-                                <option value="male">Homme</option>
-                                <option value="female">Femme</option>
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
                             </select>
                         </div>
                     </div>
                     <div className="flex gap-3 mt-6">
-                        <button type="button" onClick={onClose} className="flex-1 btn-secondary">Annuler</button>
+                        <button type="button" onClick={onClose} className="flex-1 btn-secondary">Cancel</button>
                         <button type="submit" disabled={loading} className="flex-1 btn-primary">
-                            {loading ? 'Création...' : 'Créer Patient'}
+                            {loading ? 'Creating...' : 'Create Patient'}
                         </button>
                     </div>
                 </form>

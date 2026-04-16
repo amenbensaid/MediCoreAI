@@ -44,7 +44,28 @@ router.get('/', authMiddleware, async (req, res) => {
             [...params, limit, offset]
         );
 
-        res.json({ success: true, data: { appointments: result.rows } });
+        const formatted = result.rows.map(a => ({
+            id: a.id,
+            title: a.title,
+            type: a.appointment_type,
+            start: a.start_time,
+            end: a.end_time,
+            status: a.status,
+            room: a.room,
+            color: a.color,
+            notes: a.notes,
+            patient: a.first_name ? {
+                firstName: a.first_name,
+                lastName: a.last_name,
+                fullName: `${a.first_name} ${a.last_name}`,
+                phone: a.phone,
+                email: a.email
+            } : null,
+            practitioner: a.dr_first ? {
+                fullName: `Dr. ${a.dr_first} ${a.dr_last}`
+            } : null
+        }));
+        res.json({ success: true, data: { appointments: formatted } });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to fetch appointments' });
     }
@@ -70,6 +91,8 @@ router.get('/calendar', authMiddleware, async (req, res) => {
             data: result.rows.map(a => ({
                 id: a.id,
                 title: a.title || `${a.first_name} ${a.last_name}`,
+                patientName: `${a.first_name} ${a.last_name}`,
+                type: a.appointment_type,
                 start: a.start_time,
                 end: a.end_time,
                 status: a.status,

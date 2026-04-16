@@ -10,6 +10,12 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import LandingPage from './pages/LandingPage';
 
+// Patient Portal Pages
+import PatientLogin from './pages/patient/PatientLogin';
+import PatientRegister from './pages/patient/PatientRegister';
+import PatientPortal from './pages/patient/PatientPortal';
+import BookAppointment from './pages/patient/BookAppointment';
+
 // Dashboard Pages
 import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
@@ -68,7 +74,13 @@ function App() {
                     <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
                 </Route>
 
-                {/* Protected Routes */}
+                {/* Patient Portal Routes (no staff auth required) */}
+                <Route path="/patient/login" element={<PatientLogin />} />
+                <Route path="/patient/register" element={<PatientRegister />} />
+                <Route path="/patient/portal" element={<PatientPortal />} />
+                <Route path="/patient/book" element={<BookAppointment />} />
+
+                {/* Protected Routes (Staff/Admin) */}
                 <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/patients" element={<Patients />} />
@@ -93,3 +105,4 @@ function App() {
 }
 
 export default App;
+

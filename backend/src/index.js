@@ -17,6 +17,7 @@ const clinicRoutes = require('./routes/clinics');
 const userRoutes = require('./routes/users');
 const documentRoutes = require('./routes/documents');
 const communicationRoutes = require('./routes/communications');
+const publicRoutes = require('./routes/public');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -58,6 +59,7 @@ app.use('/api/clinics', clinicRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/communications', communicationRoutes);
+app.use('/api/public', publicRoutes);
 
 app.use((req, res) => {
     res.status(404).json({
