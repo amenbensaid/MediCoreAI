@@ -15,6 +15,7 @@ import PatientLogin from './pages/patient/PatientLogin';
 import PatientRegister from './pages/patient/PatientRegister';
 import PatientPortal from './pages/patient/PatientPortal';
 import BookAppointment from './pages/patient/BookAppointment';
+import DoctorsPage from './pages/patient/DoctorsPage';
 
 // Dashboard Pages
 import Dashboard from './pages/Dashboard';
@@ -75,6 +76,7 @@ function App() {
                 </Route>
 
                 {/* Patient Portal Routes (no staff auth required) */}
+                <Route path="/doctors" element={<DoctorsPage />} />
                 <Route path="/patient/login" element={<PatientLogin />} />
                 <Route path="/patient/register" element={<PatientRegister />} />
                 <Route path="/patient/portal" element={<PatientPortal />} />

@@ -178,6 +178,7 @@ const LandingPage = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <Link to="/doctors" className="hidden md:inline text-sm text-slate-300 hover:text-white transition-colors font-medium">Find a Doctor</Link>
                         <a href="#offres" className="hidden md:inline text-sm text-slate-300 hover:text-white transition-colors">Offres</a>
                         <a href="#demo" className="hidden md:inline text-sm text-slate-300 hover:text-white transition-colors">Réserver une démo</a>
                         <Link to="/patient/login" className="hidden md:inline text-sm text-medical-300 hover:text-medical-200 transition-colors font-medium">Patient Portal</Link>

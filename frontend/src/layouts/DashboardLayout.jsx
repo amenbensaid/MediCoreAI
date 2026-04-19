@@ -89,8 +89,17 @@ const DashboardLayout = () => {
                 </nav>
 
                 {/* User section */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-dark-700">
-                    <div className={`flex items-center ${sidebarOpen ? 'gap-3' : 'justify-center'}`}>
+                <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 dark:border-dark-700">
+                    {/* Patient Portal Link */}
+                    <a href="/patient/login" target="_blank" rel="noopener noreferrer"
+                        className={`flex items-center gap-3 mx-4 mt-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-medical-500/10 to-primary-500/10 border border-medical-500/20 hover:from-medical-500/20 hover:to-primary-500/20 transition-all ${!sidebarOpen ? 'justify-center' : ''}`}>
+                        <svg className="w-5 h-5 text-medical-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        {sidebarOpen && <span className="text-sm font-medium text-medical-600 dark:text-medical-400">Patient Portal</span>}
+                    </a>
+
+                    <div className={`p-4 flex items-center ${sidebarOpen ? 'gap-3' : 'justify-center'}`}>
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-medical-500 flex items-center justify-center text-white font-semibold">
                             {user?.firstName?.[0]}{user?.lastName?.[0]}
                         </div>

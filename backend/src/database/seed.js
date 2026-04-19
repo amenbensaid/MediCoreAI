@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const pool = new Pool({
-    connectionString: 'postgresql://medicore_user:medicore_secure_password_2024@localhost:5432/medicore_db',
+    connectionString: process.env.DATABASE_URL || 'postgresql://medicore_user:medicore_secure_password_2024@localhost:5432/medicore_db',
 });
 
 async function seed() {

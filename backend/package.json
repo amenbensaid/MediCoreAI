@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "seed": "node src/database/seed.js",
     "test": "jest"
   },
   "keywords": ["medical", "crm", "pms", "healthcare", "ai"],
