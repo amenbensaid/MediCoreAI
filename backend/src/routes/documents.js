@@ -1,15 +1,19 @@
 const express = require('express');
+const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const { ensureUploadDir } = require('../utils/uploads');
 
 const router = express.Router();
 
+const documentsDir = ensureUploadDir('documents');
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, 'uploads/');
+        cb(null, documentsDir);
     },
     filename: (req, file, cb) => {
         const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
@@ -67,12 +71,17 @@ router.post('/upload', authMiddleware, upload.single('file'), async (req, res) =
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         const result = await db.query(
-            'DELETE FROM documents WHERE id = $1 AND clinic_id = $2 RETURNING id',
+            'DELETE FROM documents WHERE id = $1 AND clinic_id = $2 RETURNING id, file_path',
             [req.params.id, req.user.clinicId]
         );
 
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Document not found' });
+        }
+
+        const filePath = result.rows[0].file_path;
+        if (filePath && fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
         }
 
         res.json({ success: true, message: 'Document deleted' });

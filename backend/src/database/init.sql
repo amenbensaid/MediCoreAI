@@ -71,11 +71,13 @@ CREATE TABLE patients (
     emergency_contact_name VARCHAR(200),
     emergency_contact_phone VARCHAR(20),
     blood_type VARCHAR(10),
+    avatar_url TEXT,
     allergies TEXT[],
     chronic_conditions TEXT[],
     current_medications TEXT[],
     notes TEXT,
     referral_source VARCHAR(100),
+    primary_practitioner_id UUID REFERENCES users(id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -209,6 +211,11 @@ CREATE TABLE appointments (
     no_show_probability DECIMAL(5, 2), 
     cancellation_reason TEXT,
     notes TEXT,
+    reason_category VARCHAR(120),
+    reason_detail TEXT,
+    preparation_notes TEXT,
+    medical_record_id UUID REFERENCES medical_records(id) ON DELETE SET NULL,
+    requested_documents JSONB DEFAULT '[]',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -399,6 +406,24 @@ CREATE TABLE ai_predictions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE demo_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(50),
+    company_name VARCHAR(255) NOT NULL,
+    clinic_type VARCHAR(50),
+    desired_plan VARCHAR(50) DEFAULT 'professional',
+    team_size INTEGER,
+    preferred_demo_date TIMESTAMP,
+    message TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    reviewed_at TIMESTAMP,
+    reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
@@ -418,6 +443,7 @@ CREATE INDEX idx_patients_name ON patients(last_name, first_name);
 CREATE INDEX idx_patients_email ON patients(email);
 CREATE INDEX idx_appointments_clinic_date ON appointments(clinic_id, start_time);
 CREATE INDEX idx_appointments_patient ON appointments(patient_id);
+CREATE INDEX idx_demo_requests_status_created ON demo_requests(status, created_at DESC);
 CREATE INDEX idx_appointments_practitioner ON appointments(practitioner_id);
 CREATE INDEX idx_appointments_status ON appointments(status);
 CREATE INDEX idx_invoices_clinic ON invoices(clinic_id);
@@ -473,3 +499,145 @@ INSERT INTO patients (clinic_id, patient_number, first_name, last_name, date_of_
 ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'PAT-003', 'Pierre', 'Bernard', '1978-11-08', 'male', 'pierre.bernard@email.com', '+33 6 34 56 78 90', '42 Avenue des Champs-Élysées', 'Paris', '75008'),
 ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'PAT-004', 'Sophie', 'Petit', '1995-01-30', 'female', 'sophie.petit@email.com', '+33 6 45 67 89 01', '7 Rue du Faubourg Saint-Honoré', 'Paris', '75008'),
 ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'PAT-005', 'Luc', 'Moreau', '1982-09-14', 'male', 'luc.moreau@email.com', '+33 6 56 78 90 12', '33 Place de la République', 'Paris', '75003');
+
+-- Compatibility block for patient portal, online appointments and practitioner settings.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS consultation_fee DECIMAL(10, 2) DEFAULT 50.00;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS accepts_online BOOLEAN DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS payment_policy VARCHAR(30) DEFAULT 'full-onsite';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_preferences JSONB DEFAULT '{"appointmentEmail": true, "smsAlerts": false, "dailyReport": true, "aiAlerts": true}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS appearance_preferences JSONB DEFAULT '{"darkMode": false, "accentColor": "#6366f1"}'::jsonb;
+
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS consultation_mode VARCHAR(20) DEFAULT 'in-person';
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS meet_link TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS google_event_id VARCHAR(255);
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS meeting_provider VARCHAR(30);
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS meeting_status VARCHAR(30) DEFAULT 'not_required';
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS meeting_created_at TIMESTAMP;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS meeting_last_sync_at TIMESTAMP;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(30) DEFAULT 'full-onsite';
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT 'pending';
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS deposit_amount DECIMAL(10, 2) DEFAULT 0;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10, 2) DEFAULT 0;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS refunded BOOLEAN DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS appointment_notes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    appointment_id UUID REFERENCES appointments(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_by VARCHAR(20) DEFAULT 'patient',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS patient_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL,
+    appointment_access_id UUID REFERENCES appointments(id) ON DELETE SET NULL,
+    uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    name VARCHAR(255) NOT NULL,
+    document_code VARCHAR(120),
+    file_type VARCHAR(50) DEFAULT 'pdf',
+    category VARCHAR(100) DEFAULT 'general',
+    access_scope VARCHAR(30) DEFAULT 'private',
+    notes TEXT,
+    file_path TEXT,
+    mime_type VARCHAR(150),
+    file_size INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS practitioner_reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+    appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL,
+    practitioner_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    is_visible BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(practitioner_id, patient_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_appointment_notes_patient ON appointment_notes(patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_patient_documents_patient ON patient_documents(patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_practitioner_reviews_practitioner ON practitioner_reviews(practitioner_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_practitioner_reviews_clinic ON practitioner_reviews(clinic_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    role VARCHAR(50) NOT NULL,
+    endpoint TEXT UNIQUE NOT NULL,
+    subscription JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (user_id IS NOT NULL OR patient_id IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS idx_web_push_subscriptions_user ON web_push_subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_web_push_subscriptions_patient ON web_push_subscriptions(patient_id);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS access_permissions JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_practitioner_id UUID REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS primary_practitioner_id UUID REFERENCES users(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    clinic_id UUID REFERENCES clinics(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
+    target_role VARCHAR(50),
+    type VARCHAR(50) DEFAULT 'info',
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    url TEXT,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    read_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id, read_at, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_patient_unread ON notifications(patient_id, read_at, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_clinic_role ON notifications(clinic_id, target_role, created_at DESC);
+
+WITH patient_clinic_source AS (
+    SELECT
+        patient_id,
+        MIN(clinic_id) AS clinic_id
+    FROM appointments
+    WHERE clinic_id IS NOT NULL
+    GROUP BY patient_id
+)
+UPDATE patients p
+SET
+    clinic_id = pcs.clinic_id,
+    patient_number = COALESCE(p.patient_number, 'PAT-' || LPAD(pcs.row_number::text, 5, '0'))
+FROM (
+    SELECT
+        p_inner.id,
+        pcs_inner.clinic_id,
+        ROW_NUMBER() OVER (ORDER BY p_inner.created_at) AS row_number
+    FROM patients p_inner
+    JOIN patient_clinic_source pcs_inner ON pcs_inner.patient_id = p_inner.id
+    WHERE p_inner.clinic_id IS NULL
+) AS pcs
+WHERE p.id = pcs.id;
+
+UPDATE users
+SET
+    consultation_fee = COALESCE(consultation_fee, 50.00),
+    payment_policy = COALESCE(payment_policy, 'full-onsite'),
+    accepts_online = COALESCE(accepts_online, true),
+    notification_preferences = COALESCE(notification_preferences, '{"appointmentEmail": true, "smsAlerts": false, "dailyReport": true, "aiAlerts": true}'::jsonb),
+    appearance_preferences = COALESCE(appearance_preferences, '{"darkMode": false, "accentColor": "#6366f1"}'::jsonb)
+WHERE role = 'practitioner';

@@ -1,13 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
+import { getDisplayName } from '../utils/authRouting';
+import { useI18n } from '../stores/languageStore';
+
+const getRoleTranslationKey = (user) => {
+    if (user?.role === 'patient') return 'patient';
+    if (user?.role === 'admin') return 'admin';
+    if (user?.clinicRole === 'admin') return 'clinicAdmin';
+    if (user?.role === 'practitioner') return 'practitioner';
+    if (user?.role === 'receptionist') return 'receptionist';
+    return 'user';
+};
+
+const extractFirstNumber = (value) => String(value || '').match(/\d+/)?.[0] || '0';
+const extractGrowth = (value) => String(value || '').match(/[+-]?\d+(?:[.,]\d+)?%/)?.[0] || '0%';
+const weekdayKeys = new Set(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
 
 const Dashboard = () => {
+    const { user } = useAuthStore();
+    const { language, t } = useI18n();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [upcomingAppointments, setUpcomingAppointments] = useState([]);
-    const [recentPatients, setRecentPatients] = useState([]);
+    const [alerts, setAlerts] = useState([]);
+    const [chartData, setChartData] = useState({ revenue: [], appointments: [] });
 
     useEffect(() => {
         fetchDashboardData();
@@ -18,7 +37,8 @@ const Dashboard = () => {
             const response = await api.get('/dashboard');
             setStats(response.data.data.stats);
             setUpcomingAppointments(response.data.data.upcomingAppointments);
-            setRecentPatients(response.data.data.recentPatients);
+            setAlerts(response.data.data.alerts || []);
+            setChartData(response.data.data.charts || { revenue: [], appointments: [] });
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
         } finally {
@@ -26,26 +46,53 @@ const Dashboard = () => {
         }
     };
 
-    // Mock data for charts
-    const revenueData = [
-        { name: 'Mon', revenue: 1200 },
-        { name: 'Tue', revenue: 1800 },
-        { name: 'Wed', revenue: 1500 },
-        { name: 'Thu', revenue: 2100 },
-        { name: 'Fri', revenue: 2400 },
-        { name: 'Sat', revenue: 1800 },
-        { name: 'Sun', revenue: 0 },
-    ];
+    const locale = language === 'en' ? 'en-US' : 'fr-FR';
+    const roleLabel = t(`dashboard.roles.${getRoleTranslationKey(user)}`);
+    const isClinicAdmin = user?.role === 'admin' || user?.clinicRole === 'admin';
+    const isPractitioner = user?.role === 'practitioner';
+    const greeting = new Date().getHours() >= 18 || new Date().getHours() < 5
+        ? t('dashboard.goodEvening')
+        : t('dashboard.goodMorning');
 
-    const appointmentData = [
-        { name: 'Mon', appts: 12 },
-        { name: 'Tue', appts: 15 },
-        { name: 'Wed', appts: 10 },
-        { name: 'Thu', appts: 18 },
-        { name: 'Fri', appts: 20 },
-        { name: 'Sat', appts: 8 },
-        { name: 'Sun', appts: 0 },
-    ];
+    const localizeChartRows = (rows) => rows.map((row) => ({
+        ...row,
+        name: weekdayKeys.has(row.name) ? t(`dashboard.days.${row.name}`) : row.name
+    }));
+
+    const localizedRevenue = useMemo(() => localizeChartRows(chartData.revenue || []), [chartData.revenue, language]);
+    const localizedAppointments = useMemo(() => localizeChartRows(chartData.appointments || []), [chartData.appointments, language]);
+
+    const getAlertContent = (alert) => {
+        switch (alert.id) {
+            case 'overdue-invoices':
+                return {
+                    title: t('dashboard.alertMessages.overdueInvoicesTitle'),
+                    message: t('dashboard.alertMessages.overdueInvoices', { count: extractFirstNumber(alert.message) })
+                };
+            case 'scheduled-today':
+                return {
+                    title: t('dashboard.alertMessages.scheduledTodayTitle'),
+                    message: t('dashboard.alertMessages.scheduledToday', { count: extractFirstNumber(alert.message) })
+                };
+            case 'low-stock':
+                return {
+                    title: t('dashboard.alertMessages.lowStockTitle'),
+                    message: t('dashboard.alertMessages.lowStock', { count: extractFirstNumber(alert.message) })
+                };
+            case 'revenue-growth':
+                return {
+                    title: t('dashboard.alertMessages.revenueGrowthTitle'),
+                    message: t('dashboard.alertMessages.revenueGrowth', { growth: extractGrowth(alert.message) })
+                };
+            case 'all-clear':
+                return {
+                    title: t('dashboard.alertMessages.allClearTitle'),
+                    message: t('dashboard.alertMessages.allClear')
+                };
+            default:
+                return { title: alert.title, message: alert.message };
+        }
+    };
 
     if (loading) {
         return (
@@ -60,21 +107,36 @@ const Dashboard = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">Overview of your activity</p>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary-500">
+                        {roleLabel}
+                    </p>
+                    <h1 className="mt-2 text-3xl font-extrabold text-slate-950 dark:text-white">
+                        {greeting}, {getDisplayName(user)}
+                    </h1>
+                    <p className="mt-1 text-slate-600 dark:text-gray-400">{t('dashboard.overview')}</p>
                 </div>
                 <div className="flex gap-3">
+                    {isClinicAdmin && (
+                        <Link to="/admin/doctors" className="btn-secondary">
+                            {t('dashboard.manageDoctors')}
+                        </Link>
+                    )}
+                    {isPractitioner && (
+                        <Link to="/settings" className="btn-secondary">
+                            {t('dashboard.manageSecretaries')}
+                        </Link>
+                    )}
                     <Link to="/appointments" className="btn-secondary">
                         <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        New Appointment
+                        {t('dashboard.newAppointment')}
                     </Link>
                     <Link to="/patients" className="btn-primary">
                         <svg className="w-5 h-5 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                         </svg>
-                        New Patient
+                        {t('dashboard.newPatient')}
                     </Link>
                 </div>
             </div>
@@ -82,45 +144,46 @@ const Dashboard = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="Today's Appointments"
+                    title={t('dashboard.stats.todaysAppointments')}
                     value={stats?.appointmentsToday || 0}
-                    subtitle={`${stats?.appointmentsCompleted || 0} completed`}
+                    subtitle={t('dashboard.stats.completed', { count: stats?.appointmentsCompleted || 0 })}
                     icon={<CalendarIcon />}
                     color="primary"
-                    trend="+12%"
+                    trend={stats?.appointmentsTrend}
                 />
                 <StatCard
-                    title="Today's Revenue"
-                    value={`${(stats?.revenueToday || 0).toLocaleString('fr-FR')} €`}
-                    subtitle="vs yesterday"
+                    title={t('dashboard.stats.todaysRevenue')}
+                    value={`${(stats?.revenueToday || 0).toLocaleString(locale)} €`}
+                    subtitle={t('dashboard.stats.vsYesterday')}
                     icon={<CurrencyIcon />}
                     color="green"
-                    trend="+8%"
+                    trend={stats?.revenueTrend}
                 />
                 <StatCard
-                    title="Total Patients"
+                    title={t('dashboard.stats.totalPatients')}
                     value={stats?.totalPatients || 0}
-                    subtitle={`+${stats?.newPatientsMonth || 0} this month`}
+                    subtitle={t('dashboard.stats.thisMonth', { count: stats?.newPatientsMonth || 0 })}
                     icon={<UsersIcon />}
                     color="blue"
-                    trend="+5%"
+                    trend={stats?.patientsTrend}
                 />
                 <StatCard
-                    title="Outstanding"
-                    value={`${(stats?.pendingInvoicesAmount || 0).toLocaleString('fr-FR')} €`}
-                    subtitle={`${stats?.pendingInvoicesCount || 0} invoices`}
+                    title={t('dashboard.stats.outstanding')}
+                    value={`${(stats?.pendingInvoicesAmount || 0).toLocaleString(locale)} €`}
+                    subtitle={t('dashboard.stats.invoices', { count: stats?.pendingInvoicesCount || 0 })}
                     icon={<InvoiceIcon />}
                     color="orange"
+                    trend={stats?.pendingInvoicesTrend}
                 />
             </div>
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Revenue Chart */}
-                <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-dark-700">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Revenue</h3>
+                <div className="bg-white dark:bg-dark-800 rounded-3xl shadow-lg p-6 border border-slate-100 dark:border-dark-700">
+                    <h3 className="text-lg font-extrabold text-slate-950 dark:text-white mb-6">{t('dashboard.charts.revenue')}</h3>
                     <ResponsiveContainer width="100%" height={250}>
-                        <AreaChart data={revenueData}>
+                        <AreaChart data={localizedRevenue}>
                             <defs>
                                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -145,9 +208,9 @@ const Dashboard = () => {
 
                 {/* Appointments Chart */}
                 <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-dark-700">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Appointments</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">{t('dashboard.charts.appointments')}</h3>
                     <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={appointmentData}>
+                        <BarChart data={localizedAppointments}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.1} />
                             <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
                             <YAxis stroke="#9ca3af" fontSize={12} />
@@ -170,9 +233,9 @@ const Dashboard = () => {
                 {/* Upcoming Appointments */}
                 <div className="lg:col-span-2 bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700">
                     <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700 flex items-center justify-between">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Upcoming Appointments</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{t('dashboard.upcomingAppointments')}</h3>
                         <Link to="/calendar" className="text-sm text-primary-500 hover:text-primary-600 font-medium">
-                            View all →
+                            {t('dashboard.viewAll')}
                         </Link>
                     </div>
                     <div className="divide-y divide-gray-100 dark:divide-dark-700">
@@ -191,16 +254,16 @@ const Dashboard = () => {
                                 </div>
                                 <div className="text-right">
                                     <p className="font-medium text-gray-900 dark:text-white">
-                                        {new Date(apt.time).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                        {new Date(apt.time).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                                     </p>
                                     <span className={`badge ${apt.status === 'confirmed' ? 'badge-success' : 'badge-info'}`}>
-                                        {apt.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                                        {apt.status === 'confirmed' ? t('dashboard.statuses.confirmed') : t('dashboard.statuses.pending')}
                                     </span>
                                 </div>
                             </div>
                         )) : (
                             <div className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
-                                No upcoming appointments
+                                {t('dashboard.noUpcomingAppointments')}
                             </div>
                         )}
                     </div>
@@ -211,25 +274,22 @@ const Dashboard = () => {
                     <div className="px-6 py-4 border-b border-gray-100 dark:border-dark-700">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                            AI Alerts
+                            {t('dashboard.aiAlerts')}
                         </h3>
                     </div>
                     <div className="p-4 space-y-3">
-                        <AlertCard
-                            type="warning"
-                            title="No-show Risk"
-                            message="3 patients have high no-show probability today"
-                        />
-                        <AlertCard
-                            type="info"
-                            title="Low Stock"
-                            message="Low inventory level for 2 products"
-                        />
-                        <AlertCard
-                            type="success"
-                            title="Target Achieved"
-                            message="Monthly revenue target exceeded by 12%"
-                        />
+                        {alerts.length > 0 ? alerts.map((alert) => (
+                            <AlertCard
+                                key={alert.id}
+                                type={alert.type}
+                                title={getAlertContent(alert).title}
+                                message={getAlertContent(alert).message}
+                            />
+                        )) : (
+                            <div className="p-4 rounded-xl border border-gray-200 dark:border-dark-700 text-sm text-gray-500 dark:text-gray-400">
+                                {t('dashboard.noAlerts')}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -253,7 +313,7 @@ const StatCard = ({ title, value, subtitle, icon, color, trend }) => {
                     <div className="text-white">{icon}</div>
                 </div>
                 {trend && (
-                    <span className="text-sm font-medium text-green-500">{trend}</span>
+                    <span className={`text-sm font-medium ${String(trend).startsWith('-') ? 'text-red-500' : 'text-green-500'}`}>{trend}</span>
                 )}
             </div>
             <div className="mt-4">

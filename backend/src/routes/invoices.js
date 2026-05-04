@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const { getOwnedPractitionerId } = require('../utils/staffScope');
 
 const router = express.Router();
 
@@ -10,10 +11,16 @@ router.get('/', authMiddleware, async (req, res) => {
         const offset = (page - 1) * limit;
         let whereClause = 'WHERE i.clinic_id = $1';
         const params = [req.user.clinicId];
+        const practitionerScopeId = getOwnedPractitionerId(req.user);
 
         if (status) {
-            whereClause += ' AND i.status = $2';
             params.push(status);
+            whereClause += ` AND i.status = $${params.length}`;
+        }
+
+        if (practitionerScopeId) {
+            params.push(practitionerScopeId);
+            whereClause += ` AND i.practitioner_id = $${params.length}`;
         }
 
         const result = await db.query(

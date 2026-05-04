@@ -1,5 +1,6 @@
 const errorHandler = (err, req, res, next) => {
-    console.error('Error:', err);
+    const rid = req?.requestId || 'no-rid';
+    console.error(`[ERROR][${rid}] ${req?.method || 'UNKNOWN'} ${req?.originalUrl || 'UNKNOWN'}:`, err);
 
     if (err.name === 'ValidationError') {
         return res.status(400).json({

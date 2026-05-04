@@ -4,17 +4,19 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
+const getStartDate = (period = '30days') => {
+    if (period === '7days') return new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    if (period === '30days') return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (period === '90days') return new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    if (period === '1year') return new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+    return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+};
+
 router.get('/revenue', authMiddleware, async (req, res) => {
     try {
         const { period = '30days' } = req.query;
         const clinicId = req.user.clinicId;
-
-        let startDate;
-        if (period === '7days') startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        else if (period === '30days') startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        else if (period === '90days') startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-        else if (period === '1year') startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-        else startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const startDate = getStartDate(period);
 
         const result = await db.query(
             `SELECT DATE(payment_date) as date, SUM(amount) as revenue
@@ -47,17 +49,29 @@ router.get('/appointments', authMiddleware, async (req, res) => {
     try {
         const { period = '30days' } = req.query;
         const clinicId = req.user.clinicId;
-
-        let startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const startDate = getStartDate(period);
 
         const result = await db.query(
             `SELECT 
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'completed') as completed,
         COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled,
-        COUNT(*) FILTER (WHERE status = 'no_show') as no_show
+        COUNT(*) FILTER (WHERE status = 'no_show') as no_show,
+        COUNT(*) FILTER (WHERE status = 'scheduled') as scheduled,
+        COUNT(*) FILTER (WHERE status = 'confirmed') as confirmed,
+        COUNT(*) FILTER (WHERE status = 'awaiting_approval') as awaiting_approval,
+        COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress
        FROM appointments
        WHERE clinic_id = $1 AND start_time >= $2`,
+            [clinicId, startDate.toISOString()]
+        );
+
+        const byStatus = await db.query(
+            `SELECT status, COUNT(*) as count
+       FROM appointments
+       WHERE clinic_id = $1 AND start_time >= $2
+       GROUP BY status
+       ORDER BY count DESC`,
             [clinicId, startDate.toISOString()]
         );
 
@@ -78,10 +92,18 @@ router.get('/appointments', authMiddleware, async (req, res) => {
                     completed: parseInt(result.rows[0].completed),
                     cancelled: parseInt(result.rows[0].cancelled),
                     noShow: parseInt(result.rows[0].no_show),
+                    scheduled: parseInt(result.rows[0].scheduled),
+                    confirmed: parseInt(result.rows[0].confirmed),
+                    awaitingApproval: parseInt(result.rows[0].awaiting_approval),
+                    inProgress: parseInt(result.rows[0].in_progress),
                     completionRate: result.rows[0].total > 0
                         ? Math.round((result.rows[0].completed / result.rows[0].total) * 100)
                         : 0
                 },
+                byStatus: byStatus.rows.map(row => ({
+                    status: row.status,
+                    count: parseInt(row.count)
+                })),
                 byType: byType.rows
             }
         });
@@ -136,8 +158,9 @@ router.get('/patients', authMiddleware, async (req, res) => {
 
 router.get('/financial-summary', authMiddleware, async (req, res) => {
     try {
+        const { period = '30days' } = req.query;
         const clinicId = req.user.clinicId;
-        const currentMonth = new Date().toISOString().slice(0, 7);
+        const startDate = getStartDate(period);
 
         const result = await db.query(
             `SELECT 
@@ -145,8 +168,8 @@ router.get('/financial-summary', authMiddleware, async (req, res) => {
         COALESCE(SUM(paid_amount), 0) as collected,
         COALESCE(SUM(total_amount - paid_amount) FILTER (WHERE status NOT IN ('paid', 'cancelled')), 0) as outstanding
        FROM invoices
-       WHERE clinic_id = $1 AND TO_CHAR(created_at, 'YYYY-MM') = $2`,
-            [clinicId, currentMonth]
+       WHERE clinic_id = $1 AND created_at >= $2`,
+            [clinicId, startDate.toISOString()]
         );
 
         res.json({

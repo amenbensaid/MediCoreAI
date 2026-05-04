@@ -2,3 +2,14 @@
 node_modules
 rapport-pfe
 rapport-pfe/*
+.idea/
+.codex
+.codex/
+.opencode
+.opencode/
+opencode.json
+*.backup
+*.broken
+dist/
+backend/node_modules/
+frontend/node_modules/

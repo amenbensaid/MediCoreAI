@@ -5,7 +5,6 @@ echo "🚀 Setting up MediCore AI Database..."
 
 # Start PostgreSQL with Docker Compose
 echo "📦 Starting PostgreSQL container..."
-cd /Users/amen/Desktop/MediCore\ AI
 docker-compose up -d postgres
 
 # Wait for PostgreSQL to be ready
@@ -19,7 +18,8 @@ docker-compose exec -T postgres psql -U medicore_user -d medicore_db < backend/s
 # Run seed data
 echo "🌱 Seeding database..."
 cd backend
-npm install
+npm ci
+npm run migrate
 npm run seed
 
 echo "✅ Database setup complete!"
@@ -27,9 +27,8 @@ echo ""
 echo "📊 Database Credentials:"
 echo "  Host: localhost"
 echo "  Port: 5432"
-echo "  User: medicore_user"
-echo "  Password: medicore_secure_password_2024"
-echo "  Database: medicore_db"
+echo "  User: \${POSTGRES_USER:-medicore_user}"
+echo "  Database: \${POSTGRES_DB:-medicore_db}"
 echo ""
 echo "🔐 Demo Account:"
 echo "  Email: admin@medicore.ai"

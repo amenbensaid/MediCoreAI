@@ -2,8 +2,26 @@ const express = require('express');
 const { body, query, validationResult } = require('express-validator');
 const db = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
+const { resolveStoredUploadUrl } = require('../utils/uploads');
+const { getRequestedPractitionerScope, getWritablePractitionerId, isClinicAdminUser } = require('../utils/staffScope');
+const { createClinicAdminNotification, createPlatformAdminNotification } = require('../services/notificationCenter');
 
 const router = express.Router();
+
+const normalizeAvatarUrl = (value) => {
+    const nextValue = String(value || '').trim();
+    if (!nextValue) return null;
+    if (nextValue.startsWith('/uploads/')) return nextValue;
+
+    try {
+        const parsed = new URL(nextValue);
+        if (['http:', 'https:'].includes(parsed.protocol)) return nextValue;
+    } catch (error) {
+        return null;
+    }
+
+    return null;
+};
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
@@ -19,24 +37,38 @@ router.get('/', authMiddleware, async (req, res) => {
         const offset = (page - 1) * limit;
         const clinicId = req.user.clinicId;
 
-        let whereClause = 'WHERE clinic_id = $1';
+        let whereClause = 'WHERE p.clinic_id = $1';
         const params = [clinicId];
         let paramIndex = 2;
+        const practitionerScopeId = getRequestedPractitionerScope(req);
+
+        if (practitionerScopeId) {
+            whereClause += ` AND (
+        p.primary_practitioner_id = $${paramIndex}
+        OR EXISTS (
+          SELECT 1 FROM appointments scoped_apt
+          WHERE scoped_apt.patient_id = p.id
+            AND scoped_apt.practitioner_id = $${paramIndex}
+        )
+      )`;
+            params.push(practitionerScopeId);
+            paramIndex++;
+        }
 
         if (search) {
             whereClause += ` AND (
-        LOWER(first_name) LIKE LOWER($${paramIndex}) OR 
-        LOWER(last_name) LIKE LOWER($${paramIndex}) OR
-        LOWER(email) LIKE LOWER($${paramIndex}) OR
-        phone LIKE $${paramIndex} OR
-        patient_number LIKE $${paramIndex}
+        LOWER(p.first_name) LIKE LOWER($${paramIndex}) OR 
+        LOWER(p.last_name) LIKE LOWER($${paramIndex}) OR
+        LOWER(p.email) LIKE LOWER($${paramIndex}) OR
+        p.phone LIKE $${paramIndex} OR
+        p.patient_number LIKE $${paramIndex}
       )`;
             params.push(`%${search}%`);
             paramIndex++;
         }
 
         if (isActive !== 'all') {
-            whereClause += ` AND is_active = $${paramIndex}`;
+            whereClause += ` AND p.is_active = $${paramIndex}`;
             params.push(isActive === 'true');
             paramIndex++;
         }
@@ -45,18 +77,20 @@ router.get('/', authMiddleware, async (req, res) => {
         const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
         const countResult = await db.query(
-            `SELECT COUNT(*) FROM patients ${whereClause}`,
+            `SELECT COUNT(*) FROM patients p ${whereClause}`,
             params
         );
         const totalCount = parseInt(countResult.rows[0].count);
 
         const result = await db.query(
-            `SELECT id, patient_number, first_name, last_name, date_of_birth, gender,
-              email, phone, mobile, city, is_active, created_at,
-              (SELECT COUNT(*) FROM appointments WHERE patient_id = patients.id) as appointment_count
-       FROM patients
+            `SELECT p.id, p.patient_number, p.first_name, p.last_name, p.date_of_birth, p.gender,
+              p.email, p.phone, p.mobile, p.city, p.avatar_url, p.is_active, p.created_at,
+              p.primary_practitioner_id, u.first_name AS doctor_first_name, u.last_name AS doctor_last_name,
+              (SELECT COUNT(*) FROM appointments WHERE patient_id = p.id) as appointment_count
+       FROM patients p
+       LEFT JOIN users u ON u.id = p.primary_practitioner_id
        ${whereClause}
-       ORDER BY ${sortColumn} ${order}
+       ORDER BY p.${sortColumn} ${order}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
             [...params, limit, offset]
         );
@@ -76,6 +110,9 @@ router.get('/', authMiddleware, async (req, res) => {
                     phone: p.phone,
                     mobile: p.mobile,
                     city: p.city,
+                    avatarUrl: resolveStoredUploadUrl(p.avatar_url),
+                    practitionerId: p.primary_practitioner_id,
+                    practitionerName: p.doctor_first_name ? `Dr. ${p.doctor_first_name} ${p.doctor_last_name}` : null,
                     isActive: p.is_active,
                     appointmentCount: parseInt(p.appointment_count),
                     createdAt: p.created_at
@@ -100,7 +137,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
         const clinicId = req.user.clinicId;
 
         const result = await db.query(
-            `SELECT * FROM patients WHERE id = $1 AND clinic_id = $2`,
+            `SELECT p.*, u.first_name AS doctor_first_name, u.last_name AS doctor_last_name
+             FROM patients p
+             LEFT JOIN users u ON u.id = p.primary_practitioner_id
+             WHERE p.id = $1 AND p.clinic_id = $2`,
             [id, clinicId]
         );
 
@@ -109,6 +149,18 @@ router.get('/:id', authMiddleware, async (req, res) => {
         }
 
         const patient = result.rows[0];
+        const practitionerScopeId = getRequestedPractitionerScope(req);
+        if (practitionerScopeId && patient.primary_practitioner_id !== practitionerScopeId) {
+            const linked = await db.query(
+                `SELECT 1 FROM appointments
+                 WHERE patient_id = $1 AND practitioner_id = $2
+                 LIMIT 1`,
+                [id, practitionerScopeId]
+            );
+            if (linked.rows.length === 0) {
+                return res.status(404).json({ success: false, message: 'Patient not found' });
+            }
+        }
 
         const appointmentsResult = await db.query(
             `SELECT a.id, a.appointment_type, a.title, a.start_time, a.end_time, a.status,
@@ -162,6 +214,9 @@ router.get('/:id', authMiddleware, async (req, res) => {
                 emergencyContactName: patient.emergency_contact_name,
                 emergencyContactPhone: patient.emergency_contact_phone,
                 bloodType: patient.blood_type,
+                avatarUrl: resolveStoredUploadUrl(patient.avatar_url),
+                practitionerId: patient.primary_practitioner_id,
+                practitionerName: patient.doctor_first_name ? `Dr. ${patient.doctor_first_name} ${patient.doctor_last_name}` : null,
                 allergies: patient.allergies || [],
                 chronicConditions: patient.chronic_conditions || [],
                 currentMedications: patient.current_medications || [],
@@ -222,8 +277,23 @@ router.post('/', authMiddleware, [
             address, city, postalCode, country, socialSecurityNumber,
             insuranceProvider, insuranceNumber, emergencyContactName,
             emergencyContactPhone, bloodType, allergies, chronicConditions,
-            currentMedications, notes, referralSource
+            currentMedications, notes, referralSource, avatarUrl, practitionerId
         } = req.body;
+        const normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
+        const resolvedPractitionerId = getWritablePractitionerId(req, { practitionerId });
+
+        if (isClinicAdminUser(req.user) && practitionerId) {
+            const practitionerResult = await db.query(
+                `SELECT u.id
+                 FROM users u
+                 JOIN user_clinics uc ON uc.user_id = u.id
+                 WHERE u.id = $1 AND uc.clinic_id = $2 AND u.role = 'practitioner' AND u.is_active = true`,
+                [practitionerId, clinicId]
+            );
+            if (practitionerResult.rows.length === 0) {
+                return res.status(400).json({ success: false, message: 'Practitioner not found' });
+            }
+        }
 
         const countResult = await db.query(
             'SELECT COUNT(*) FROM patients WHERE clinic_id = $1',
@@ -237,19 +307,39 @@ router.post('/', authMiddleware, [
         email, phone, mobile, address, city, postal_code, country,
         social_security_number, insurance_provider, insurance_number,
         emergency_contact_name, emergency_contact_phone, blood_type,
-        allergies, chronic_conditions, current_medications, notes, referral_source
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+        allergies, chronic_conditions, current_medications, notes, referral_source, avatar_url,
+        primary_practitioner_id
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
       RETURNING *`,
             [
                 clinicId, patientNumber, firstName, lastName, dateOfBirth, gender,
                 email, phone, mobile, address, city, postalCode, country || 'France',
                 socialSecurityNumber, insuranceProvider, insuranceNumber,
                 emergencyContactName, emergencyContactPhone, bloodType,
-                allergies, chronicConditions, currentMedications, notes, referralSource
+                allergies, chronicConditions, currentMedications, notes, referralSource, normalizedAvatarUrl,
+                resolvedPractitionerId
             ]
         );
 
         const patient = result.rows[0];
+
+        createClinicAdminNotification({
+            clinicId,
+            type: 'success',
+            title: 'Nouveau patient',
+            message: `${patient.first_name} ${patient.last_name} a été ajouté au dossier patients.`,
+            url: `/patients/${patient.id}`,
+            metadata: { patientId: patient.id, practitionerId: resolvedPractitionerId, event: 'patient_created' },
+            excludeUserId: req.user.id
+        }).catch((error) => console.error('Failed to notify clinic admins:', error));
+
+        createPlatformAdminNotification({
+            type: 'info',
+            title: 'Nouveau patient créé',
+            message: `${patient.first_name} ${patient.last_name} a été ajouté dans une clinique.`,
+            url: '/patients',
+            metadata: { patientId: patient.id, clinicId, event: 'patient_created' }
+        }).catch((error) => console.error('Failed to notify platform admins:', error));
 
         res.status(201).json({
             success: true,
@@ -289,8 +379,23 @@ router.put('/:id', authMiddleware, async (req, res) => {
             address, city, postalCode, country, socialSecurityNumber,
             insuranceProvider, insuranceNumber, emergencyContactName,
             emergencyContactPhone, bloodType, allergies, chronicConditions,
-            currentMedications, notes, referralSource, isActive
+            currentMedications, notes, referralSource, isActive, avatarUrl, practitionerId
         } = req.body;
+        const normalizedAvatarUrl = normalizeAvatarUrl(avatarUrl);
+        const canChangePractitioner = isClinicAdminUser(req.user);
+
+        if (canChangePractitioner && practitionerId) {
+            const practitionerResult = await db.query(
+                `SELECT u.id
+                 FROM users u
+                 JOIN user_clinics uc ON uc.user_id = u.id
+                 WHERE u.id = $1 AND uc.clinic_id = $2 AND u.role = 'practitioner' AND u.is_active = true`,
+                [practitionerId, clinicId]
+            );
+            if (practitionerResult.rows.length === 0) {
+                return res.status(400).json({ success: false, message: 'Practitioner not found' });
+            }
+        }
 
         const result = await db.query(
             `UPDATE patients SET
@@ -317,15 +422,19 @@ router.put('/:id', authMiddleware, async (req, res) => {
         notes = COALESCE($21, notes),
         referral_source = COALESCE($22, referral_source),
         is_active = COALESCE($23, is_active),
+        avatar_url = COALESCE($24, avatar_url),
+        primary_practitioner_id = CASE WHEN $25::text IS NULL THEN primary_practitioner_id ELSE NULLIF($25::text, '')::uuid END,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = $24 AND clinic_id = $25
+      WHERE id = $26 AND clinic_id = $27
       RETURNING *`,
             [
                 firstName, lastName, dateOfBirth, gender, email, phone, mobile,
                 address, city, postalCode, country, socialSecurityNumber,
                 insuranceProvider, insuranceNumber, emergencyContactName,
                 emergencyContactPhone, bloodType, allergies, chronicConditions,
-                currentMedications, notes, referralSource, isActive, id, clinicId
+                currentMedications, notes, referralSource, isActive, normalizedAvatarUrl,
+                canChangePractitioner ? (practitionerId ?? undefined) : undefined,
+                id, clinicId
             ]
         );
 

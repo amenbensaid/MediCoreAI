@@ -19,6 +19,7 @@ const authMiddleware = async (req, res, next) => {
 
             const result = await db.query(
                 `SELECT u.id, u.email, u.first_name, u.last_name, u.role, u.specialty, u.is_active,
+                u.access_permissions, u.assigned_practitioner_id,
                 uc.clinic_id, uc.role as clinic_role, c.name as clinic_name, c.type as clinic_type
          FROM users u
          LEFT JOIN user_clinics uc ON u.id = uc.user_id
@@ -44,7 +45,9 @@ const authMiddleware = async (req, res, next) => {
                 clinicId: result.rows[0].clinic_id,
                 clinicRole: result.rows[0].clinic_role,
                 clinicName: result.rows[0].clinic_name,
-                clinicType: result.rows[0].clinic_type
+                clinicType: result.rows[0].clinic_type,
+                assignedPractitionerId: result.rows[0].assigned_practitioner_id,
+                accessPermissions: result.rows[0].access_permissions || {}
             };
 
             next();

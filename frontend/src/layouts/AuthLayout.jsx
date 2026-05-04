@@ -1,9 +1,14 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useThemeStore } from '../stores/themeStore';
+import LanguageSwitch from '../components/ui/LanguageSwitch';
+import { useI18n } from '../stores/languageStore';
 
 const AuthLayout = () => {
     const { initializeTheme } = useThemeStore();
+    const { t } = useI18n();
+    const location = useLocation();
+    const isRegister = location.pathname === '/register';
 
     useEffect(() => {
         initializeTheme();
@@ -22,6 +27,19 @@ const AuthLayout = () => {
 
                 {/* Content */}
                 <div className="relative z-10 flex flex-col justify-center px-16">
+                    <div className="mb-10">
+                        <Link
+                            to="/"
+                            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                        >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            {t('common.backHome')}
+                        </Link>
+                        <LanguageSwitch className="ml-3 align-middle" />
+                    </div>
+
                     {/* Logo */}
                     <div className="flex items-center gap-4 mb-12">
                         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-medical-500 flex items-center justify-center shadow-glow">
@@ -31,7 +49,7 @@ const AuthLayout = () => {
                         </div>
                         <div>
                             <h1 className="text-4xl font-bold text-white">MediCore</h1>
-                            <p className="text-primary-300 font-medium">AI-Powered Healthcare</p>
+                            <p className="text-primary-300 font-medium">{t('auth.tagline')}</p>
                         </div>
                     </div>
 
@@ -44,8 +62,8 @@ const AuthLayout = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-white mb-1">Smart Management</h3>
-                                <p className="text-gray-400">Automate your administrative tasks with AI</p>
+                                <h3 className="text-xl font-semibold text-white mb-1">{t('auth.smartManagementTitle')}</h3>
+                                <p className="text-gray-400">{t('auth.smartManagementText')}</p>
                             </div>
                         </div>
 
@@ -56,8 +74,8 @@ const AuthLayout = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-white mb-1">Smart Scheduling</h3>
-                                <p className="text-gray-400">No-show prediction and appointment optimization</p>
+                                <h3 className="text-xl font-semibold text-white mb-1">{t('auth.smartSchedulingTitle')}</h3>
+                                <p className="text-gray-400">{t('auth.smartSchedulingText')}</p>
                             </div>
                         </div>
 
@@ -68,8 +86,8 @@ const AuthLayout = () => {
                                 </svg>
                             </div>
                             <div>
-                                <h3 className="text-xl font-semibold text-white mb-1">Advanced Analytics</h3>
-                                <p className="text-gray-400">BI dashboards to drive your practice</p>
+                                <h3 className="text-xl font-semibold text-white mb-1">{t('auth.analyticsTitle')}</h3>
+                                <p className="text-gray-400">{t('auth.analyticsText')}</p>
                             </div>
                         </div>
                     </div>
@@ -78,23 +96,23 @@ const AuthLayout = () => {
                     <div className="mt-16 flex gap-12">
                         <div>
                             <p className="text-4xl font-bold text-white">10k+</p>
-                            <p className="text-gray-400">Practitioners</p>
+                            <p className="text-gray-400">{t('auth.practitioners')}</p>
                         </div>
                         <div>
                             <p className="text-4xl font-bold text-white">2M+</p>
-                            <p className="text-gray-400">Patients managed</p>
+                            <p className="text-gray-400">{t('auth.patientsManaged')}</p>
                         </div>
                         <div>
                             <p className="text-4xl font-bold text-white">99.9%</p>
-                            <p className="text-gray-400">Uptime</p>
+                            <p className="text-gray-400">{t('auth.uptime')}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Right side - Auth Form */}
-            <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-                <div className="w-full max-w-md">
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+                <div className={`w-full ${isRegister ? 'max-w-2xl' : 'max-w-md'}`}>
                     <Outlet />
                 </div>
             </div>

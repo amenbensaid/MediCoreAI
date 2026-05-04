@@ -1,6 +1,8 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+const { runMigrations } = require('../database/migrations');
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('@postgres') ? false : process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -10,7 +12,7 @@ const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('📦 Connected to PostgreSQL database');
+  console.log('Connected to PostgreSQL database');
 });
 
 pool.on('error', (err) => {
@@ -42,9 +44,7 @@ const getClient = async () => {
     console.error('Client has been checked out for too long');
   }, 5000);
 
-  client.query = (...args) => {
-    return originalQuery(...args);
-  };
+  client.query = (...args) => originalQuery(...args);
 
   client.release = () => {
     clearTimeout(timeout);
@@ -54,8 +54,14 @@ const getClient = async () => {
   return client;
 };
 
+const ensureCompatibilitySchema = async () => {
+  await runMigrations(pool);
+  console.log('Schema migrations completed');
+};
+
 module.exports = {
   query,
   getClient,
-  pool
+  pool,
+  ensureCompatibilitySchema
 };

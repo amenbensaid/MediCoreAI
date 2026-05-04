@@ -1,16 +1,52 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import LanguageSwitch from '../../components/ui/LanguageSwitch';
+import { useI18n } from '../../stores/languageStore';
+import { getLocalizedAuthError } from '../../utils/authErrors';
+import api from '../../services/api';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [forgotOpen, setForgotOpen] = useState(false);
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [forgotLoading, setForgotLoading] = useState(false);
+    const [forgotMessage, setForgotMessage] = useState('');
     const { login, isLoading, error } = useAuthStore();
+    const { t } = useI18n();
+    const passwordVisibilityLabel = showPassword ? t('common.hide') : t('common.show');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await login(email, password);
+        const normalizedEmail = email.trim().toLowerCase();
+        await login(normalizedEmail, password);
+    };
+
+    const useDemoCredentials = () => {
+        setEmail('admin@medicore.ai');
+        setPassword('Admin@123');
+    };
+
+    const openForgotPassword = () => {
+        setForgotEmail(email.trim().toLowerCase());
+        setForgotMessage('');
+        setForgotOpen(true);
+    };
+
+    const submitForgotPassword = async (e) => {
+        e.preventDefault();
+        setForgotLoading(true);
+        setForgotMessage('');
+        try {
+            await api.post('/auth/forgot-password', { email: forgotEmail.trim().toLowerCase() });
+            setForgotMessage(t('auth.forgotPasswordSent'));
+        } catch (error) {
+            setForgotMessage(error.response?.data?.message || t('auth.forgotPasswordError'));
+        } finally {
+            setForgotLoading(false);
+        }
     };
 
     return (
@@ -25,36 +61,49 @@ const Login = () => {
                 <span className="text-2xl font-bold text-white">MediCore AI</span>
             </div>
 
+            <div className="mb-4 flex justify-center gap-3 lg:hidden">
+                <Link
+                    to="/"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    {t('common.backHome')}
+                </Link>
+                <LanguageSwitch compact />
+            </div>
+
             <div className="bg-white dark:bg-dark-800 rounded-2xl shadow-2xl p-8">
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
-                    <p className="text-gray-500 dark:text-gray-400">Sign in to your account</p>
+                    <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('auth.welcomeBack')}</h2>
+                    <p className="text-gray-500 dark:text-gray-400">{t('auth.signInSubtitle')}</p>
                 </div>
 
                 {error && (
                     <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-red-600 dark:text-red-400 text-sm">
-                        {error}
+                        {getLocalizedAuthError(error, t)}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Email
+                            {t('auth.email')}
                         </label>
                         <input
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             className="input-field"
-                            placeholder="you@example.com"
+                            placeholder={t('auth.emailPlaceholder')}
                             required
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Password
+                            {t('auth.password')}
                         </label>
                         <div className="relative">
                             <input
@@ -68,6 +117,8 @@ const Login = () => {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
+                                aria-label={passwordVisibilityLabel}
+                                title={passwordVisibilityLabel}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                             >
                                 {showPassword ? (
@@ -87,11 +138,11 @@ const Login = () => {
                     <div className="flex items-center justify-between">
                         <label className="flex items-center">
                             <input type="checkbox" className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500" />
-                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Remember me</span>
+                            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">{t('auth.rememberMe')}</span>
                         </label>
-                        <a href="#" className="text-sm text-primary-500 hover:text-primary-600 font-medium">
-                            Forgot password?
-                        </a>
+                        <button type="button" onClick={openForgotPassword} className="text-sm text-primary-500 hover:text-primary-600 font-medium">
+                            {t('auth.forgotPassword')}
+                        </button>
                     </div>
 
                     <button
@@ -102,31 +153,92 @@ const Login = () => {
                         {isLoading ? (
                             <>
                                 <div className="spinner" />
-                                Signing in...
+                                {t('auth.signingIn')}
                             </>
                         ) : (
-                            'Sign In'
+                            t('common.signIn')
                         )}
                     </button>
                 </form>
 
                 <div className="mt-8 text-center">
                     <p className="text-gray-500 dark:text-gray-400">
-                        Don't have an account?{' '}
+                        {t('auth.noAccount')}{' '}
                         <Link to="/register" className="text-primary-500 hover:text-primary-600 font-medium">
-                            Sign Up
+                            {t('auth.signUp')}
+                        </Link>
+                    </p>
+                    <p className="mt-3">
+                        <Link to="/" className="text-sm font-medium text-slate-500 transition hover:text-primary-600">
+                            {t('auth.homeLink')}
                         </Link>
                     </p>
                 </div>
 
                 {/* Demo credentials */}
                 <div className="mt-6 p-4 bg-gray-50 dark:bg-dark-700 rounded-xl">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">Demo account:</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">{t('auth.demoAccount')}</p>
                     <p className="text-sm text-center text-gray-700 dark:text-gray-300">
                         <span className="font-mono">admin@medicore.ai</span> / <span className="font-mono">Admin@123</span>
                     </p>
+                    <div className="mt-3 flex justify-center">
+                        <button
+                            type="button"
+                            onClick={useDemoCredentials}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-primary-500/10 text-primary-500 hover:bg-primary-500/20 transition-colors"
+                        >
+                            {t('auth.useDemo')}
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {forgotOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+                    <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl dark:bg-dark-800">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 className="text-xl font-extrabold text-slate-950 dark:text-white">{t('auth.forgotPasswordTitle')}</h3>
+                                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('auth.forgotPasswordSubtitle')}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setForgotOpen(false)}
+                                className="rounded-xl p-2 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-dark-700"
+                                aria-label={t('common.cancel')}
+                            >
+                                x
+                            </button>
+                        </div>
+                        <form onSubmit={submitForgotPassword} className="mt-5 space-y-4">
+                            <div>
+                                <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">{t('auth.email')}</label>
+                                <input
+                                    type="email"
+                                    value={forgotEmail}
+                                    onChange={(e) => setForgotEmail(e.target.value)}
+                                    className="input-field"
+                                    placeholder={t('auth.emailPlaceholder')}
+                                    required
+                                />
+                            </div>
+                            {forgotMessage && (
+                                <div className="rounded-2xl border border-primary-100 bg-primary-50 p-3 text-sm text-primary-700 dark:border-primary-900/40 dark:bg-primary-900/20 dark:text-primary-200">
+                                    {forgotMessage}
+                                </div>
+                            )}
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <button type="button" onClick={() => setForgotOpen(false)} className="btn-secondary">
+                                    {t('common.cancel')}
+                                </button>
+                                <button type="submit" disabled={forgotLoading} className="btn-primary">
+                                    {forgotLoading ? t('common.loading') : t('auth.sendResetRequest')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
