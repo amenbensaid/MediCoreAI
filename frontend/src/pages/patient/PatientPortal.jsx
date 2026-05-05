@@ -26,6 +26,7 @@ const PatientPortal = () => {
     const { language, t } = useI18n();
     const [user, setUser] = useState(null);
     const [appointments, setAppointments] = useState([]);
+    const [waitlist, setWaitlist] = useState([]);
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('appointments');
@@ -81,11 +82,13 @@ const PatientPortal = () => {
         };
         const params = { _ts: Date.now() };
         try {
-            const [aptsRes, profileRes] = await Promise.all([
+            const [aptsRes, waitlistRes, profileRes] = await Promise.all([
                 api.get('/public/my-appointments', { headers, params }),
+                api.get('/public/my-waitlist', { headers, params }).catch(() => ({ data: { data: [] } })),
                 api.get('/public/my-profile', { headers, params }).catch(() => null)
             ]);
             setAppointments(aptsRes.data.data);
+            setWaitlist(waitlistRes.data.data || []);
             if (profileRes) {
                 const nextProfile = profileRes.data.data;
                 setProfile(nextProfile);
@@ -147,6 +150,20 @@ const PatientPortal = () => {
             fetchAll(token);
         } catch (err) {
             setFeedback({ type: 'error', message: err.response?.data?.message || t('patientPortal.feedback.noteError') });
+        }
+    };
+
+    const handleWaitlistDecision = async (entry, action) => {
+        try {
+            const token = localStorage.getItem('patient-token');
+            const res = await api.post(`/public/waitlist/${entry.id}/${action}`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setFeedback({ type: 'success', message: res.data.message });
+            fetchAll(token);
+            if (action === 'accept') setActiveTab('appointments');
+        } catch (err) {
+            setFeedback({ type: 'error', message: err.response?.data?.message || 'Action impossible sur cette proposition.' });
         }
     };
 
@@ -304,6 +321,7 @@ const PatientPortal = () => {
 
     const tabs = [
         { id: 'appointments', label: t('patientPortal.tabs.appointments'), icon: '📅' },
+        { id: 'waitlist', label: t('patientPortal.waitlist.tab'), icon: '⏳' },
         { id: 'documents', label: t('patientPortal.tabs.documents'), icon: '📄' },
         { id: 'history', label: t('patientPortal.tabs.history'), icon: '🕐' }
     ];
@@ -434,6 +452,46 @@ const PatientPortal = () => {
                                         getStatusBadge={getStatusBadge}
                                         language={language}
                                         t={t} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+
+                {/* ── Waitlist Tab ── */}
+                {activeTab === 'waitlist' && (
+                    <div className="space-y-6">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center">
+                                        <span className="text-xl">⏳</span>
+                                    </div>
+                                    {t('patientPortal.waitlist.title')}
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('patientPortal.waitlist.subtitle')}</p>
+                            </div>
+                            <Link to="/patient/book" className="btn-primary text-sm">{t('patientPortal.waitlist.findSlot')}</Link>
+                        </div>
+
+                        {waitlist.length === 0 ? (
+                            <div className="rounded-3xl border border-dashed border-gray-200 bg-white p-10 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-3xl">⏳</div>
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('patientPortal.waitlist.emptyTitle')}</h3>
+                                <p className="mx-auto mt-2 max-w-md text-sm text-gray-500 dark:text-gray-400">{t('patientPortal.waitlist.emptyText')}</p>
+                            </div>
+                        ) : (
+                            <div className="grid gap-4">
+                                {waitlist.map((entry) => (
+                                    <WaitlistCard
+                                        key={entry.id}
+                                        entry={entry}
+                                        onAccept={() => handleWaitlistDecision(entry, 'accept')}
+                                        onDecline={() => handleWaitlistDecision(entry, 'decline')}
+                                        language={language}
+                                        t={t}
+                                    />
                                 ))}
                             </div>
                         )}
@@ -756,6 +814,71 @@ const PatientPortal = () => {
 };
 
 // ── Enhanced Sub-components ──
+const WaitlistCard = ({ entry, onAccept, onDecline, language = 'fr', t = (key) => key }) => {
+    const isOffered = entry.status === 'offered';
+    const isPending = entry.status === 'pending';
+    const patientsBefore = Math.max((entry.position || 1) - 1, 0);
+    const statusClasses = {
+        pending: 'bg-amber-50 text-amber-700 border-amber-200',
+        offered: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        accepted: 'bg-blue-50 text-blue-700 border-blue-200',
+        declined: 'bg-slate-50 text-slate-500 border-slate-200',
+        expired: 'bg-red-50 text-red-700 border-red-200'
+    };
+
+    return (
+        <div className={`rounded-3xl border bg-white p-6 shadow-sm dark:bg-slate-800 dark:border-slate-700 ${isOffered ? 'ring-4 ring-emerald-100' : ''}`}>
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-4">
+                    <div className={`flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-2xl ${isOffered ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span className="text-xs font-bold uppercase">
+                            {new Date(entry.startTime).toLocaleDateString(language === 'en' ? 'en-US' : 'fr-FR', { month: 'short' })}
+                        </span>
+                        <span className="text-xl font-extrabold">{new Date(entry.startTime).getDate()}</span>
+                    </div>
+                    <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-lg font-extrabold text-gray-900 dark:text-white">{entry.practitioner}</h3>
+                            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusClasses[entry.status] || statusClasses.pending}`}>
+                                {t(`patientPortal.waitlist.status.${entry.status}`)}
+                            </span>
+                        </div>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {entry.appointmentType} • {new Date(entry.startTime).toLocaleTimeString(language === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {isPending && (
+                                <div className="rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
+                                    <span className="font-extrabold">{patientsBefore}</span> {t('patientPortal.waitlist.beforeYou')}
+                                </div>
+                            )}
+                            {isOffered && (
+                                <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-800">
+                                    {t('patientPortal.waitlist.offerText')}
+                                    {entry.offerExpiresAt && (
+                                        <span className="block text-xs font-semibold">
+                                            {t('patientPortal.waitlist.offerExpires')} {new Date(entry.offerExpiresAt).toLocaleTimeString(language === 'en' ? 'en-US' : 'fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            <div className="rounded-2xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+                                {entry.consultationMode === 'online' ? t('patientPortal.appointmentCard.online') : t('patientPortal.appointmentCard.inPerson')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {isOffered && (
+                    <div className="grid gap-2 sm:grid-cols-2 lg:w-72">
+                        <button onClick={onDecline} className="btn-secondary">{t('patientPortal.waitlist.decline')}</button>
+                        <button onClick={onAccept} className="btn-primary">{t('patientPortal.waitlist.accept')}</button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const AppointmentCard = ({ apt, onCancel, onAddNote, onUploadRequestedDoc, getStatusBadge, isPast, language = 'fr', t = (key) => key }) => (
     <div className={`bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-6 shadow-sm hover:shadow-lg transition-all duration-300 ${isPast ? 'opacity-70' : ''} group`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">

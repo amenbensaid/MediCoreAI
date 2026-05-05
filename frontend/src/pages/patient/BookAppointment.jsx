@@ -46,6 +46,7 @@ const BookAppointment = () => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const [bookingResult, setBookingResult] = useState(null);
+    const [waitlistResult, setWaitlistResult] = useState(null);
     const [user, setUser] = useState(null);
     
     // Nouveaux états pour une meilleure expérience
@@ -183,6 +184,8 @@ const BookAppointment = () => {
     const selectedTypeConfig = appointmentTypes.find(t => t.name === appointmentType);
     const calendarSettings = selectedPractitioner?.calendar || {};
     const durationMinutes = slots.find((slot) => slot.time === selectedSlot)?.durationMinutes || calendarSettings.defaultDurationMinutes || 30;
+    const selectedSlotInfo = slots.find((slot) => slot.time === selectedSlot);
+    const selectedSlotAvailable = selectedSlotInfo?.available !== false;
     const supportsInPerson = calendarSettings.sessions?.some((session) => session.enabled && ['both', 'in-person'].includes(session.mode)) ?? true;
     const supportsOnline = Boolean(selectedPractitioner?.acceptsOnline && calendarSettings.sessions?.some((session) => session.enabled && ['both', 'online'].includes(session.mode)));
     const availableModeOptions = [
@@ -208,42 +211,77 @@ const BookAppointment = () => {
         finally { setLoading(false); }
     };
 
+    const handleJoinWaitlist = async () => {
+        setLoading(true); setError('');
+        try {
+            const token = localStorage.getItem('patient-token');
+            const selectedType = appointmentTypes.find((item) => item.name === appointmentType);
+            const res = await api.post('/public/waitlist', {
+                practitionerId: selectedPractitioner.id,
+                date: selectedDate,
+                time: selectedSlot,
+                appointmentType,
+                serviceId: selectedType?.id,
+                notes,
+                consultationMode,
+                reasonCategory: reasonCategory === 'Autre' ? 'Autre' : reasonCategory,
+                reasonDetail: reasonCategory === 'Autre' ? reasonDetail : reasonCategory
+            }, { headers: { Authorization: `Bearer ${token}` } });
+            setWaitlistResult(res.data);
+            setSuccess(true);
+        } catch (err) { setError(err.response?.data?.message || 'Impossible de rejoindre la file d’attente'); }
+        finally { setLoading(false); }
+    };
+
     // ── Success Screen ──
     if (success) {
         const apt = bookingResult?.data;
+        const wait = waitlistResult?.data;
         return (
             <div className="min-h-screen bg-slate-50 text-slate-900">
                 <PublicNavbar />
                 <Container className="py-14">
                     <div className="mx-auto max-w-md text-center fade-in-soft">
-                        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100 text-green-600">
+                        <div className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full ${wait ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>
                             <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                {wait ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                )}
                             </svg>
                         </div>
                         <h2 className="text-3xl font-extrabold text-slate-900">
-                            {apt?.consultation_mode === 'online' || consultationMode === 'online' ? 'Demande envoyée !' : 'RDV Confirmé !'}
+                            {wait ? 'Vous êtes en file d’attente !' : apt?.consultation_mode === 'online' || consultationMode === 'online' ? 'Demande envoyée !' : 'RDV Confirmé !'}
                         </h2>
-                        <p className="mt-2 text-slate-600">{bookingResult?.message}</p>
+                        <p className="mt-2 text-slate-600">{waitlistResult?.message || bookingResult?.message}</p>
 
                         <div className="mt-8 rounded-3xl border border-slate-100 bg-white p-6 text-left shadow-sm">
                             <div className="space-y-3 text-sm text-slate-600">
                                 <div className="flex justify-between">
                                     <span>Date</span>
-                                    <span className="font-semibold text-slate-900">{new Date(apt?.start_time || '').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                                    <span className="font-semibold text-slate-900">{new Date((wait?.startTime || apt?.start_time) || '').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Heure</span>
-                                    <span className="font-semibold text-slate-900">{new Date(apt?.start_time || '').toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="font-semibold text-slate-900">{new Date((wait?.startTime || apt?.start_time) || '').toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Médecin</span>
-                                    <span className="font-semibold text-slate-900">{apt?.practitioner_name || selectedPractitioner?.name}</span>
+                                    <span className="font-semibold text-slate-900">{wait?.practitioner || apt?.practitioner_name || selectedPractitioner?.name}</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span>Mode</span>
-                                    <span className="font-semibold text-slate-900">{apt?.consultation_mode === 'online' ? 'En ligne' : 'Présentiel'}</span>
+                                    <span className="font-semibold text-slate-900">{(wait?.consultationMode || apt?.consultation_mode) === 'online' ? 'En ligne' : 'Présentiel'}</span>
                                 </div>
+                                {wait && (
+                                    <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                                        <p className="text-sm font-bold text-amber-800">{Math.max((wait.position || 1) - 1, 0)} patient(s) avant vous</p>
+                                        <p className="mt-1 text-xs text-amber-700">
+                                            Si une place se libère avant vous, vous recevrez une notification pour accepter ou laisser la place au patient suivant.
+                                        </p>
+                                    </div>
+                                )}
                                 {apt?.consultation_mode === 'online' && (
                                     <div className="mt-3 rounded-xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
                                         ℹ️ Le lien Jitsi Meet sera visible après validation médecin.
@@ -253,8 +291,8 @@ const BookAppointment = () => {
                         </div>
 
                         <div className="mt-8 space-y-3">
-                            <Button variant="blue" onClick={() => navigate('/patient/appointments')} className="w-full !px-6 !py-3">
-                                Voir mes rendez-vous
+                            <Button variant="blue" onClick={() => navigate('/patient/portal')} className="w-full !px-6 !py-3">
+                                {wait ? 'Suivre ma file d’attente' : 'Voir mes rendez-vous'}
                             </Button>
                             <Button variant="ghost" onClick={() => navigate('/patient/book')} className="w-full !px-6 !py-3">
                                 Nouveau rendez-vous
@@ -633,17 +671,20 @@ const BookAppointment = () => {
                                                         const hour = parseInt(slot.time.split(':')[0]);
                                                         return hour >= 8 && hour < 12;
                                                     }).map(slot => (
-                                                        <button key={slot.time} disabled={!slot.available}
+                                                        <button key={slot.time}
                                                             onClick={() => setSelectedSlot(slot.time)}
                                                             className={`rounded-xl border px-3 py-3 text-sm font-bold transition-all ${
-                                                                !slot.available
-                                                                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 line-through'
+                                                                selectedSlot === slot.time && !slot.available
+                                                                    ? 'border-amber-500 bg-amber-50 text-amber-800 ring-4 ring-amber-100'
                                                                     : selectedSlot === slot.time
                                                                         ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200'
-                                                                        : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50'
+                                                                        : !slot.available
+                                                                            ? 'border-slate-200 bg-slate-50 text-slate-400 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700'
+                                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50'
                                                             }`}>
                                                             {slot.time}
                                                             <span className="mt-0.5 block text-[10px] font-medium opacity-70">{slot.endTime}</span>
+                                                            {!slot.available && <span className="mt-1 block text-[10px] font-bold no-underline">File</span>}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -662,17 +703,20 @@ const BookAppointment = () => {
                                                         const hour = parseInt(slot.time.split(':')[0]);
                                                         return hour >= 12 && hour < 18;
                                                     }).map(slot => (
-                                                        <button key={slot.time} disabled={!slot.available}
+                                                        <button key={slot.time}
                                                             onClick={() => setSelectedSlot(slot.time)}
                                                             className={`rounded-xl border px-3 py-3 text-sm font-bold transition-all ${
-                                                                !slot.available
-                                                                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 line-through'
+                                                                selectedSlot === slot.time && !slot.available
+                                                                    ? 'border-amber-500 bg-amber-50 text-amber-800 ring-4 ring-amber-100'
                                                                     : selectedSlot === slot.time
                                                                         ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200'
-                                                                        : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50'
+                                                                        : !slot.available
+                                                                            ? 'border-slate-200 bg-slate-50 text-slate-400 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-700'
+                                                                            : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50'
                                                             }`}>
                                                             {slot.time}
                                                             <span className="mt-0.5 block text-[10px] font-medium opacity-70">{slot.endTime}</span>
+                                                            {!slot.available && <span className="mt-1 block text-[10px] font-bold no-underline">File</span>}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -683,6 +727,23 @@ const BookAppointment = () => {
 
                                 {/* Appointment Type & Notes */}
                                 <Card className="space-y-4 border-slate-100 p-5 xl:col-span-2">
+                                    {selectedSlot && !selectedSlotAvailable && (
+                                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                            <div className="flex items-start gap-3">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                                                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H4v-2a4 4 0 014-4h1m0-4a4 4 0 100-8 4 4 0 000 8zm8 0a4 4 0 100-8 4 4 0 000 8z" />
+                                                    </svg>
+                                                </div>
+                                                <div>
+                                                    <p className="font-extrabold">Créneau complet : file d’attente disponible</p>
+                                                    <p className="mt-1 text-amber-700">
+                                                        Vous pouvez rejoindre la file. On vous affichera votre position, puis si une personne annule avant vous, vous recevrez une proposition pour prendre sa place.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="grid gap-4 md:grid-cols-2">
                                     <div>
                                         <label className="mb-2 block text-sm font-bold text-slate-700">Type de consultation</label>
@@ -751,7 +812,9 @@ const BookAppointment = () => {
                         <div className="flex gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
                             <Button variant="ghost" onClick={() => setStep(1)} className="!px-6 !py-3">Retour</Button>
                             <Button variant="blue" onClick={() => setStep(3)} disabled={!selectedDate || !selectedSlot} className="flex-1">
-                                {selectedDate && selectedSlot ? `Continuer avec ${selectedSlot}` : 'Choisissez une date et un créneau'}
+                                {selectedDate && selectedSlot
+                                    ? selectedSlotAvailable ? `Continuer avec ${selectedSlot}` : `Rejoindre la file pour ${selectedSlot}`
+                                    : 'Choisissez une date et un créneau'}
                             </Button>
                         </div>
                     </div>
@@ -878,6 +941,16 @@ const BookAppointment = () => {
                                     </div>
                                 </div>
 
+                                {!selectedSlotAvailable && (
+                                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800">
+                                        <p className="font-extrabold">Vous allez rejoindre la file d’attente</p>
+                                        <p className="mt-1 text-sm">
+                                            Ce créneau est déjà pris. Après inscription, votre portail affichera combien de patients sont avant vous.
+                                            Si une place se libère, vous pourrez accepter ou refuser. En cas de refus, la proposition ira au patient suivant.
+                                        </p>
+                                    </div>
+                                )}
+
                                 {/* Informations supplémentaires */}
                                 <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl">
                                     <div>
@@ -946,14 +1019,14 @@ const BookAppointment = () => {
                                 <Button variant="ghost" onClick={() => setStep(2)} className="flex-1 !px-6 !py-3">
                                     Retour
                                 </Button>
-                                <Button variant="blue" onClick={handleBook} disabled={loading} className="flex-1">
+                                <Button variant="blue" onClick={selectedSlotAvailable ? handleBook : handleJoinWaitlist} disabled={loading} className="flex-1">
                                     {loading ? (
                                         <>
                                             <span className="spinner" />
                                             Confirmation...
                                         </>
                                     ) : (
-                                        'Confirmer le RDV'
+                                        selectedSlotAvailable ? 'Confirmer le RDV' : 'Rejoindre la file d’attente'
                                     )}
                                 </Button>
                             </div>

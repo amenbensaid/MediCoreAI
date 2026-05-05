@@ -85,6 +85,14 @@ export const translations = {
             noUpcomingAppointments: 'Aucun rendez-vous à venir',
             aiAlerts: 'Alertes IA',
             noAlerts: 'Aucune alerte pour le moment',
+            waitlist: {
+                eyebrow: 'File d’attente',
+                title: 'File d’attente médecin',
+                subtitle: 'Suivez les patients en attente et ouvrez le jour concerné pour proposer, confirmer ou annuler.',
+                active: 'Actives',
+                manage: 'Gérer',
+                empty: 'Aucune demande en file d’attente active.'
+            },
             statuses: {
                 confirmed: 'Confirmé',
                 pending: 'En attente'
@@ -521,6 +529,29 @@ export const translations = {
                 emptyTitle: 'Aucun rendez-vous',
                 emptyDescription: 'Cette journée est libre. Ajoutez un rendez-vous depuis une séance ou créez un créneau manuel.',
                 add: 'Ajouter'
+            },
+            waitlist: {
+                eyebrow: 'File d’attente',
+                title: 'Demandes en attente',
+                subtitle: 'Proposez une place libérée, confirmez directement un rendez-vous ou annulez une demande.',
+                active: 'Actives',
+                emptyTitle: 'Aucune demande en attente',
+                emptyText: 'Les patients qui rejoignent la file pour cette journée apparaîtront ici.',
+                before: 'avant lui',
+                offer: 'Proposer la place',
+                confirm: 'Confirmer RDV',
+                cancel: 'Annuler demande',
+                offerExpires: 'Réponse avant',
+                status: {
+                    pending: 'En attente',
+                    offered: 'Place proposée'
+                },
+                feedback: {
+                    offer: 'Place proposée au patient.',
+                    confirm: 'Rendez-vous confirmé depuis la file d’attente.',
+                    cancel: 'Demande annulée.',
+                    error: 'Action impossible sur cette file d’attente.'
+                }
             }
         },
         staffTeleconsultations: {
@@ -1258,6 +1289,27 @@ export const translations = {
                 documents: 'Dossier médical',
                 history: 'Historique'
             },
+            waitlist: {
+                tab: 'File d’attente',
+                title: 'File d’attente',
+                subtitle: 'Suivez vos créneaux complets et acceptez une place dès qu’elle se libère.',
+                findSlot: 'Chercher un créneau',
+                emptyTitle: 'Aucune file d’attente',
+                emptyText: 'Quand un créneau est complet, vous pouvez rejoindre la file depuis la page de réservation.',
+                beforeYou: 'patient(s) avant vous',
+                offerText: 'Une place est disponible pour vous.',
+                offerExpires: 'Réponse avant',
+                accept: 'Prendre la place',
+                decline: 'Laisser au suivant',
+                status: {
+                    pending: 'En attente',
+                    offered: 'Place proposée',
+                    accepted: 'Acceptée',
+                    declined: 'Refusée',
+                    expired: 'Expirée',
+                    cancelled: 'Annulée'
+                }
+            },
             appointments: {
                 title: 'Mes rendez-vous',
                 upcomingShort: '{{count}} à venir',
@@ -1599,6 +1651,14 @@ export const translations = {
             noUpcomingAppointments: 'No upcoming appointments',
             aiAlerts: 'AI alerts',
             noAlerts: 'No alerts for now',
+            waitlist: {
+                eyebrow: 'Waitlist',
+                title: 'Doctor waitlist',
+                subtitle: 'Track waiting patients and open the relevant day to offer, confirm, or cancel.',
+                active: 'Active',
+                manage: 'Manage',
+                empty: 'No active waitlist request.'
+            },
             statuses: {
                 confirmed: 'Confirmed',
                 pending: 'Pending'
@@ -2035,6 +2095,29 @@ export const translations = {
                 emptyTitle: 'No appointments',
                 emptyDescription: 'This day is free. Add an appointment from a session or create a manual slot.',
                 add: 'Add'
+            },
+            waitlist: {
+                eyebrow: 'Waitlist',
+                title: 'Pending requests',
+                subtitle: 'Offer a released slot, confirm an appointment directly, or cancel a request.',
+                active: 'Active',
+                emptyTitle: 'No pending request',
+                emptyText: 'Patients who join the waitlist for this day will appear here.',
+                before: 'before this patient',
+                offer: 'Offer slot',
+                confirm: 'Confirm appt.',
+                cancel: 'Cancel request',
+                offerExpires: 'Reply before',
+                status: {
+                    pending: 'Waiting',
+                    offered: 'Slot offered'
+                },
+                feedback: {
+                    offer: 'Slot offered to the patient.',
+                    confirm: 'Appointment confirmed from the waitlist.',
+                    cancel: 'Request cancelled.',
+                    error: 'Unable to update this waitlist request.'
+                }
             }
         },
         staffTeleconsultations: {
@@ -2771,6 +2854,27 @@ export const translations = {
                 appointments: 'Appointments',
                 documents: 'Medical record',
                 history: 'History'
+            },
+            waitlist: {
+                tab: 'Waitlist',
+                title: 'Waitlist',
+                subtitle: 'Track full slots and accept a seat as soon as it becomes available.',
+                findSlot: 'Find a slot',
+                emptyTitle: 'No waitlist entries',
+                emptyText: 'When a slot is full, you can join the waitlist from the booking page.',
+                beforeYou: 'patient(s) before you',
+                offerText: 'A slot is available for you.',
+                offerExpires: 'Reply before',
+                accept: 'Take this slot',
+                decline: 'Pass to next',
+                status: {
+                    pending: 'Waiting',
+                    offered: 'Offered',
+                    accepted: 'Accepted',
+                    declined: 'Declined',
+                    expired: 'Expired',
+                    cancelled: 'Cancelled'
+                }
             },
             appointments: {
                 title: 'My appointments',

@@ -25,6 +25,7 @@ const Dashboard = () => {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [upcomingAppointments, setUpcomingAppointments] = useState([]);
+    const [waitlistEntries, setWaitlistEntries] = useState([]);
     const [alerts, setAlerts] = useState([]);
     const [chartData, setChartData] = useState({ revenue: [], appointments: [] });
 
@@ -34,9 +35,13 @@ const Dashboard = () => {
 
     const fetchDashboardData = async () => {
         try {
-            const response = await api.get('/dashboard');
+            const [response, waitlistResponse] = await Promise.all([
+                api.get('/dashboard'),
+                api.get('/appointments/waitlist', { params: { status: 'active' } }).catch(() => ({ data: { data: [] } }))
+            ]);
             setStats(response.data.data.stats);
             setUpcomingAppointments(response.data.data.upcomingAppointments);
+            setWaitlistEntries(waitlistResponse.data.data || []);
             setAlerts(response.data.data.alerts || []);
             setChartData(response.data.data.charts || { revenue: [], appointments: [] });
         } catch (error) {
@@ -61,6 +66,24 @@ const Dashboard = () => {
 
     const localizedRevenue = useMemo(() => localizeChartRows(chartData.revenue || []), [chartData.revenue, language]);
     const localizedAppointments = useMemo(() => localizeChartRows(chartData.appointments || []), [chartData.appointments, language]);
+    const displayedWaitlist = waitlistEntries.slice(0, 3);
+
+    const getWaitlistDateKey = (entry) => {
+        if (!entry?.startTime) return '';
+        const datePart = String(entry.startTime).split('T')[0];
+        return datePart || '';
+    };
+
+    const formatWaitlistTime = (entry) => {
+        if (!entry?.startTime) return '';
+        return new Date(entry.startTime).toLocaleString(locale, {
+            weekday: 'short',
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
 
     const getAlertContent = (alert) => {
         switch (alert.id) {
@@ -225,6 +248,63 @@ const Dashboard = () => {
                             <Bar dataKey="appts" fill="#14b8a6" radius={[4, 4, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div className="rounded-3xl border border-amber-100 bg-white p-6 shadow-lg dark:border-amber-900/30 dark:bg-dark-800">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-sm font-bold uppercase tracking-[0.18em] text-amber-600 dark:text-amber-300">
+                            {t('dashboard.waitlist.eyebrow')}
+                        </p>
+                        <h2 className="mt-1 text-xl font-extrabold text-slate-950 dark:text-white">
+                            {t('dashboard.waitlist.title')}
+                        </h2>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            {t('dashboard.waitlist.subtitle')}
+                        </p>
+                    </div>
+                    <div className="rounded-2xl bg-amber-50 px-5 py-3 text-center dark:bg-amber-900/20">
+                        <p className="text-xs font-semibold text-amber-600 dark:text-amber-300">{t('dashboard.waitlist.active')}</p>
+                        <p className="text-2xl font-extrabold text-amber-700 dark:text-amber-100">{waitlistEntries.length}</p>
+                    </div>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                    {displayedWaitlist.length > 0 ? displayedWaitlist.map((entry) => {
+                        const dateKey = getWaitlistDateKey(entry);
+                        const patientsBefore = Math.max((entry.position || 1) - 1, 0);
+                        return (
+                            <div key={entry.id} className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 dark:border-dark-700 dark:bg-dark-900/30 md:flex-row md:items-center md:justify-between">
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <p className="font-bold text-slate-950 dark:text-white">{entry.patientName || t('patient.badge')}</p>
+                                        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-100 dark:bg-dark-800 dark:text-amber-200 dark:ring-amber-900/30">
+                                            {entry.status === 'offered' ? t('staffCalendar.waitlist.status.offered') : t('staffCalendar.waitlist.status.pending')}
+                                        </span>
+                                        <span className="rounded-full bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-700 dark:bg-cyan-900/20 dark:text-cyan-200">
+                                            {patientsBefore} {t('staffCalendar.waitlist.before')}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                        {formatWaitlistTime(entry)} · {entry.appointmentType || 'Consultation'}
+                                    </p>
+                                    {(entry.reasonDetail || entry.reasonCategory) && (
+                                        <p className="mt-2 inline-flex rounded-xl bg-white px-3 py-1 text-sm font-semibold text-slate-600 ring-1 ring-slate-200 dark:bg-dark-800 dark:text-slate-200 dark:ring-dark-700">
+                                            {entry.reasonDetail || entry.reasonCategory}
+                                        </p>
+                                    )}
+                                </div>
+                                <Link to={dateKey ? `/calendar/day/${dateKey}` : '/calendar'} className="btn-secondary text-center">
+                                    {t('dashboard.waitlist.manage')}
+                                </Link>
+                            </div>
+                        );
+                    }) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm font-semibold text-slate-500 dark:border-dark-700 dark:text-slate-400">
+                            {t('dashboard.waitlist.empty')}
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -18,6 +18,11 @@ const {
 const { formatLocalDateTime } = require('../utils/dateTime');
 const { saveSubscription } = require('../services/webPushNotifications');
 const { createClinicRoleNotification, createNotification, createPlatformAdminNotification } = require('../services/notificationCenter');
+const {
+    mapWaitlistEntry,
+    offerNextWaitlistForSlot,
+    offerNextWaitlistForAppointment
+} = require('../services/appointmentWaitlist');
 
 const router = express.Router();
 
@@ -806,6 +811,335 @@ router.post('/book-appointment', async (req, res) => {
     }
 });
 
+router.post('/waitlist', async (req, res) => {
+    const client = await db.getClient();
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        const {
+            practitionerId, date, time, appointmentType, serviceId, notes, consultationMode,
+            reasonCategory, reasonDetail
+        } = req.body;
+        if (!practitionerId || !date || !time) return res.status(400).json({ success: false, message: 'Missing required fields' });
+
+        await client.query('BEGIN');
+
+        const drResult = await client.query(
+            'SELECT consultation_fee, payment_policy, accepts_online, calendar_preferences FROM users WHERE id = $1 AND role = $2 AND is_active = true',
+            [practitionerId, 'practitioner']
+        );
+        const dr = drResult.rows[0];
+        if (!dr) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Practitioner not found' });
+        }
+
+        const clinicResult = await client.query(
+            'SELECT clinic_id FROM user_clinics WHERE user_id = $1 LIMIT 1',
+            [practitionerId]
+        );
+        const clinicId = clinicResult.rows[0]?.clinic_id || null;
+        if (!clinicId) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'Practitioner is not linked to a clinic' });
+        }
+
+        const mode = consultationMode || 'in-person';
+        if (mode === 'online' && !dr.accepts_online) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'This practitioner does not offer online consultations' });
+        }
+
+        let selectedService = null;
+        if (serviceId) {
+            const serviceResult = await client.query(
+                `SELECT id, name, duration_minutes
+                 FROM services
+                 WHERE id = $1 AND clinic_id = $2 AND is_active = true`,
+                [serviceId, clinicId]
+            );
+            selectedService = serviceResult.rows[0] || null;
+        }
+
+        const calendar = normalizeCalendarPreferences(dr.calendar_preferences);
+        const durationMinutes = selectedService?.duration_minutes || calendar.defaultDurationMinutes;
+        const startTime = new Date(`${date}T${time}:00`);
+        const endTime = new Date(startTime.getTime() + durationMinutes * 60000);
+        const bookingDate = new Date(`${date}T00:00:00`);
+        const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+        const matchingSession = calendar.sessions.find((session) => (
+            session.enabled &&
+            session.dayOfWeek === bookingDate.getDay() &&
+            isModeAllowedBySession(session.mode, mode) &&
+            startMinutes >= timeToMinutes(session.start) &&
+            startMinutes + durationMinutes <= timeToMinutes(session.end)
+        ));
+
+        if (!matchingSession) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'This slot is outside the doctor schedule' });
+        }
+
+        const conflict = await client.query(
+            `SELECT id
+             FROM appointments
+             WHERE practitioner_id = $1
+               AND status NOT IN ('cancelled')
+               AND tstzrange(start_time, end_time, '[)') && tstzrange($2::timestamp, $3::timestamp, '[)')`,
+            [practitionerId, startTime, endTime]
+        );
+
+        if (conflict.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, message: 'This slot is available. You can book it directly.' });
+        }
+
+        await ensurePatientClinicAssignment(decoded.patientId, clinicId, client);
+        const resolvedAppointmentType = selectedService?.name || appointmentType || 'Consultation';
+
+        const existing = await client.query(
+            `SELECT aw.*, u.first_name AS dr_first, u.last_name AS dr_last, u.specialty
+             FROM appointment_waitlist aw
+             LEFT JOIN users u ON u.id = aw.practitioner_id
+             WHERE aw.patient_id = $1
+               AND aw.practitioner_id = $2
+               AND aw.desired_start_time = $3
+               AND aw.status IN ('pending', 'offered')
+             LIMIT 1`,
+            [decoded.patientId, practitionerId, startTime]
+        );
+
+        let entry;
+        if (existing.rows.length > 0) {
+            entry = existing.rows[0];
+        } else {
+            const created = await client.query(
+                `INSERT INTO appointment_waitlist (
+                    clinic_id, practitioner_id, patient_id, desired_start_time, desired_end_time,
+                    appointment_type, consultation_mode, reason_category, reason_detail, notes
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+                 RETURNING *`,
+                [
+                    clinicId, practitionerId, decoded.patientId, startTime, endTime,
+                    resolvedAppointmentType, mode, reasonCategory || null,
+                    reasonCategory === 'Autre' ? reasonDetail || null : reasonDetail || reasonCategory || null,
+                    notes || null
+                ]
+            );
+            entry = created.rows[0];
+        }
+
+        const hydrated = await client.query(
+            `SELECT aw.*, u.first_name AS dr_first, u.last_name AS dr_last, u.specialty
+             FROM appointment_waitlist aw
+             LEFT JOIN users u ON u.id = aw.practitioner_id
+             WHERE aw.id = $1`,
+            [entry.id]
+        );
+        const payload = await mapWaitlistEntry(client, hydrated.rows[0]);
+        await client.query('COMMIT');
+
+        res.status(existing.rows.length > 0 ? 200 : 201).json({
+            success: true,
+            message: `Vous êtes dans la file d’attente. ${payload.position - 1} patient(s) avant vous.`,
+            data: payload
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Waitlist join error:', error);
+        if (error.name === 'JsonWebTokenError') return res.status(401).json({ success: false, message: 'Invalid session' });
+        res.status(500).json({ success: false, message: 'Unable to join waitlist' });
+    } finally {
+        client.release();
+    }
+});
+
+router.get('/my-waitlist', async (req, res) => {
+    const client = await db.getClient();
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        const result = await client.query(
+            `SELECT aw.*, u.first_name AS dr_first, u.last_name AS dr_last, u.specialty
+             FROM appointment_waitlist aw
+             LEFT JOIN users u ON u.id = aw.practitioner_id
+             WHERE aw.patient_id = $1
+             ORDER BY aw.created_at DESC
+             LIMIT 50`,
+            [decoded.patientId]
+        );
+
+        const data = [];
+        for (const row of result.rows) {
+            data.push(await mapWaitlistEntry(client, row));
+        }
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('Waitlist fetch error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch waitlist' });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/waitlist/:id/accept', async (req, res) => {
+    const client = await db.getClient();
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        await client.query('BEGIN');
+        const requestResult = await client.query(
+            `SELECT aw.*, u.consultation_fee, u.payment_policy, u.accepts_online
+             FROM appointment_waitlist aw
+             JOIN users u ON u.id = aw.practitioner_id
+             WHERE aw.id = $1 AND aw.patient_id = $2
+             FOR UPDATE`,
+            [req.params.id, decoded.patientId]
+        );
+
+        if (requestResult.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ success: false, message: 'Waitlist request not found' });
+        }
+
+        const entry = requestResult.rows[0];
+        if (entry.status !== 'offered') {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ success: false, message: 'No available offer for this request' });
+        }
+
+        if (entry.offer_expires_at && new Date(entry.offer_expires_at).getTime() < Date.now()) {
+            await client.query(
+                `UPDATE appointment_waitlist
+                 SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $1`,
+                [entry.id]
+            );
+            await client.query('COMMIT');
+            offerNextWaitlistForSlot({
+                practitionerId: entry.practitioner_id,
+                startTime: entry.desired_start_time,
+                endTime: entry.desired_end_time,
+                sourceAppointmentId: entry.source_appointment_id
+            }).catch(() => {});
+            return res.status(409).json({ success: false, message: 'This offer has expired' });
+        }
+
+        const conflict = await client.query(
+            `SELECT id
+             FROM appointments
+             WHERE practitioner_id = $1
+               AND status NOT IN ('cancelled')
+               AND tstzrange(start_time, end_time, '[)') && tstzrange($2::timestamp, $3::timestamp, '[)')`,
+            [entry.practitioner_id, entry.desired_start_time, entry.desired_end_time]
+        );
+        if (conflict.rows.length > 0) {
+            await client.query(
+                `UPDATE appointment_waitlist
+                 SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $1`,
+                [entry.id]
+            );
+            await client.query('COMMIT');
+            return res.status(409).json({ success: false, message: 'This slot is no longer available' });
+        }
+
+        const isOnline = entry.consultation_mode === 'online';
+        const fee = parseFloat(entry.consultation_fee) || 50;
+        const paymentMode = isOnline ? 'full-advance' : entry.payment_policy === 'deposit-30' ? 'deposit-30' : 'full-onsite';
+        const paymentStatus = isOnline ? 'paid' : entry.payment_policy === 'deposit-30' ? 'deposit-paid' : 'pending';
+        const depositAmount = isOnline ? fee : entry.payment_policy === 'deposit-30' ? Math.round(fee * 0.3 * 100) / 100 : 0;
+        const meetingProvider = isOnline ? 'jitsi' : null;
+        const meetingStatus = isOnline ? 'awaiting_approval' : 'not_required';
+
+        const appointmentResult = await client.query(
+            `INSERT INTO appointments (patient_id, practitioner_id, clinic_id, start_time, end_time,
+             appointment_type, status, notes, consultation_mode, reason_category, reason_detail,
+             payment_mode, payment_status, deposit_amount, total_amount, meeting_provider, meeting_status)
+             VALUES ($1,$2,$3,$4,$5,$6,'awaiting_approval',$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+             RETURNING id, start_time, end_time, status, consultation_mode`,
+            [
+                entry.patient_id, entry.practitioner_id, entry.clinic_id, entry.desired_start_time, entry.desired_end_time,
+                entry.appointment_type, entry.notes || '', entry.consultation_mode, entry.reason_category, entry.reason_detail,
+                paymentMode, paymentStatus, depositAmount, fee, meetingProvider, meetingStatus
+            ]
+        );
+
+        await client.query(
+            `UPDATE appointment_waitlist
+             SET status = 'accepted',
+                 accepted_appointment_id = $1,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [appointmentResult.rows[0].id, entry.id]
+        );
+
+        await client.query('COMMIT');
+
+        createNotification({
+            clinicId: entry.clinic_id,
+            userId: entry.practitioner_id,
+            type: 'appointment',
+            title: 'Place acceptée depuis la file',
+            message: `Un patient a accepté le créneau libéré pour ${entry.appointment_type}.`,
+            url: '/appointments',
+            metadata: { appointmentId: appointmentResult.rows[0].id, waitlistId: entry.id }
+        }).catch(() => {});
+
+        res.status(201).json({
+            success: true,
+            message: 'Votre place est confirmée. Le rendez-vous est envoyé au médecin pour validation.',
+            data: {
+                ...appointmentResult.rows[0],
+                start_time: formatLocalDateTime(appointmentResult.rows[0].start_time),
+                end_time: formatLocalDateTime(appointmentResult.rows[0].end_time)
+            }
+        });
+    } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Waitlist accept error:', error);
+        res.status(500).json({ success: false, message: 'Unable to accept waitlist offer' });
+    } finally {
+        client.release();
+    }
+});
+
+router.post('/waitlist/:id/decline', async (req, res) => {
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        const result = await db.query(
+            `UPDATE appointment_waitlist
+             SET status = 'declined', updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1 AND patient_id = $2 AND status = 'offered'
+             RETURNING *`,
+            [req.params.id, decoded.patientId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Active offer not found' });
+        }
+
+        const entry = result.rows[0];
+        offerNextWaitlistForSlot({
+            practitionerId: entry.practitioner_id,
+            startTime: entry.desired_start_time,
+            endTime: entry.desired_end_time,
+            sourceAppointmentId: entry.source_appointment_id
+        }).catch(() => {});
+
+        res.json({ success: true, message: 'Place refusée. Elle sera proposée au patient suivant.' });
+    } catch (error) {
+        console.error('Waitlist decline error:', error);
+        res.status(500).json({ success: false, message: 'Unable to decline waitlist offer' });
+    }
+});
+
 router.post('/web-push/subscribe', async (req, res) => {
     try {
         const decoded = verifyPatientToken(req);
@@ -918,6 +1252,10 @@ router.post('/cancel-appointment/:id', async (req, res) => {
              WHERE id = $4`,
             [req.body.reason || 'Cancelled by patient', refunded, refunded ? 'refunded' : 'cancelled', req.params.id]
         );
+
+        offerNextWaitlistForAppointment(appointment).catch((error) => {
+            console.error('Failed to offer cancelled slot to waitlist:', error);
+        });
 
         res.json({
             success: true,
