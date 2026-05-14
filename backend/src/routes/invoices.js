@@ -2,8 +2,66 @@ const express = require('express');
 const db = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { getOwnedPractitionerId } = require('../utils/staffScope');
+const { buildInvoicePdf } = require('../utils/invoicePdf');
 
 const router = express.Router();
+
+const mapInvoiceSummary = (i) => ({
+    id: i.id,
+    invoiceNumber: i.invoice_number,
+    patientName: `${i.first_name || ''} ${i.last_name || ''}`.trim(),
+    patientEmail: i.email,
+    status: i.status,
+    subtotal: parseFloat(i.subtotal),
+    taxAmount: parseFloat(i.tax_amount),
+    totalAmount: parseFloat(i.total_amount),
+    paidAmount: parseFloat(i.paid_amount),
+    balance: parseFloat(i.total_amount) - parseFloat(i.paid_amount),
+    dueDate: i.due_date,
+    createdAt: i.created_at,
+    appointmentId: i.appointment_id || null,
+    appointmentType: i.appointment_type || null,
+    appointmentStart: i.start_time || null,
+    consultationMode: i.consultation_mode || null,
+    practitionerName: [i.dr_first, i.dr_last].filter(Boolean).join(' ') || null
+});
+
+const getInvoiceDetail = async ({ invoiceId, clinicId, practitionerScopeId = null }) => {
+    const params = [invoiceId, clinicId];
+    let practitionerClause = '';
+    if (practitionerScopeId) {
+        params.push(practitionerScopeId);
+        practitionerClause = `AND i.practitioner_id = $${params.length}`;
+    }
+
+    const result = await db.query(
+        `SELECT i.*, p.first_name, p.last_name, p.email AS patient_email, p.phone AS patient_phone,
+                p.address AS patient_address, p.city AS patient_city,
+                a.appointment_type, a.start_time, a.end_time, a.consultation_mode,
+                u.first_name AS dr_first, u.last_name AS dr_last,
+                c.name AS clinic_name
+         FROM invoices i
+         LEFT JOIN patients p ON i.patient_id = p.id
+         LEFT JOIN appointments a ON a.id = i.appointment_id
+         LEFT JOIN users u ON u.id = i.practitioner_id
+         LEFT JOIN clinics c ON c.id = i.clinic_id
+         WHERE i.id = $1 AND i.clinic_id = $2 ${practitionerClause}`,
+        params
+    );
+
+    if (result.rows.length === 0) return null;
+    const invoice = result.rows[0];
+    const [items, payments] = await Promise.all([
+        db.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at ASC', [invoiceId]),
+        db.query('SELECT * FROM payments WHERE invoice_id = $1 ORDER BY payment_date DESC', [invoiceId])
+    ]);
+
+    return {
+        invoice,
+        items: items.rows,
+        payments: payments.rows
+    };
+};
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
@@ -24,9 +82,13 @@ router.get('/', authMiddleware, async (req, res) => {
         }
 
         const result = await db.query(
-            `SELECT i.*, p.first_name, p.last_name, p.email
+            `SELECT i.*, p.first_name, p.last_name, p.email,
+                    a.appointment_type, a.start_time, a.consultation_mode,
+                    u.first_name AS dr_first, u.last_name AS dr_last
        FROM invoices i
        LEFT JOIN patients p ON i.patient_id = p.id
+       LEFT JOIN appointments a ON a.id = i.appointment_id
+       LEFT JOIN users u ON u.id = i.practitioner_id
        ${whereClause}
        ORDER BY i.created_at DESC
        LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
@@ -40,20 +102,7 @@ router.get('/', authMiddleware, async (req, res) => {
         res.json({
             success: true,
             data: {
-                invoices: result.rows.map(i => ({
-                    id: i.id,
-                    invoiceNumber: i.invoice_number,
-                    patientName: `${i.first_name} ${i.last_name}`,
-                    patientEmail: i.email,
-                    status: i.status,
-                    subtotal: parseFloat(i.subtotal),
-                    taxAmount: parseFloat(i.tax_amount),
-                    totalAmount: parseFloat(i.total_amount),
-                    paidAmount: parseFloat(i.paid_amount),
-                    balance: parseFloat(i.total_amount) - parseFloat(i.paid_amount),
-                    dueDate: i.due_date,
-                    createdAt: i.created_at
-                })),
+                invoices: result.rows.map(mapInvoiceSummary),
                 totalCount: parseInt(countResult.rows[0].count)
             }
         });
@@ -62,37 +111,76 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 });
 
-router.get('/:id', authMiddleware, async (req, res) => {
+router.get('/:id/pdf', authMiddleware, async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT i.*, p.first_name, p.last_name, p.email, p.phone, p.address, p.city
-       FROM invoices i
-       LEFT JOIN patients p ON i.patient_id = p.id
-       WHERE i.id = $1 AND i.clinic_id = $2`,
-            [req.params.id, req.user.clinicId]
-        );
+        const detail = await getInvoiceDetail({
+            invoiceId: req.params.id,
+            clinicId: req.user.clinicId,
+            practitionerScopeId: getOwnedPractitionerId(req.user)
+        });
 
-        if (result.rows.length === 0) {
+        if (!detail) {
             return res.status(404).json({ success: false, message: 'Invoice not found' });
         }
 
-        const items = await db.query(
-            `SELECT * FROM invoice_items WHERE invoice_id = $1`,
-            [req.params.id]
-        );
+        const pdf = buildInvoicePdf({
+            invoice: {
+                ...detail.invoice,
+                patient_name: `${detail.invoice.first_name || ''} ${detail.invoice.last_name || ''}`.trim()
+            },
+            items: detail.items,
+            payments: detail.payments
+        });
 
-        const payments = await db.query(
-            `SELECT * FROM payments WHERE invoice_id = $1 ORDER BY payment_date DESC`,
-            [req.params.id]
-        );
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${detail.invoice.invoice_number}.pdf"`);
+        res.send(pdf);
+    } catch (error) {
+        console.error('Failed to generate invoice PDF:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate invoice PDF' });
+    }
+});
 
-        const invoice = result.rows[0];
+router.get('/:id', authMiddleware, async (req, res) => {
+    try {
+        const detail = await getInvoiceDetail({
+            invoiceId: req.params.id,
+            clinicId: req.user.clinicId,
+            practitionerScopeId: getOwnedPractitionerId(req.user)
+        });
+
+        if (!detail) {
+            return res.status(404).json({ success: false, message: 'Invoice not found' });
+        }
+
+        const invoice = detail.invoice;
         res.json({
             success: true,
             data: {
-                ...invoice,
-                items: items.rows,
-                payments: payments.rows
+                id: invoice.id,
+                invoiceNumber: invoice.invoice_number,
+                patientName: `${invoice.first_name || ''} ${invoice.last_name || ''}`.trim(),
+                patientEmail: invoice.patient_email,
+                patientPhone: invoice.patient_phone,
+                patientAddress: [invoice.patient_address, invoice.patient_city].filter(Boolean).join(', '),
+                practitionerName: [invoice.dr_first, invoice.dr_last].filter(Boolean).join(' ') || null,
+                clinicName: invoice.clinic_name,
+                appointmentId: invoice.appointment_id,
+                appointmentType: invoice.appointment_type,
+                appointmentStart: invoice.start_time,
+                appointmentEnd: invoice.end_time,
+                consultationMode: invoice.consultation_mode,
+                status: invoice.status,
+                subtotal: parseFloat(invoice.subtotal),
+                taxAmount: parseFloat(invoice.tax_amount),
+                totalAmount: parseFloat(invoice.total_amount),
+                paidAmount: parseFloat(invoice.paid_amount),
+                balance: parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount),
+                dueDate: invoice.due_date,
+                createdAt: invoice.created_at,
+                notes: invoice.notes,
+                items: detail.items,
+                payments: detail.payments
             }
         });
     } catch (error) {

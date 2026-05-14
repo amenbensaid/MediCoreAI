@@ -22,6 +22,7 @@ const Invoices = () => {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showPaymentModal, setShowPaymentModal] = useState(null);
     const [showDetailModal, setShowDetailModal] = useState(null);
+    const [downloadLoadingId, setDownloadLoadingId] = useState('');
 
     const locale = language === 'en' ? 'en-US' : 'fr-FR';
 
@@ -78,6 +79,26 @@ const Invoices = () => {
             return acc;
         }, {})
     ), [invoices]);
+
+    const downloadInvoicePdf = async (invoice) => {
+        setDownloadLoadingId(invoice.id);
+        try {
+            const response = await api.get(`/invoices/${invoice.id}/pdf`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${invoice.invoiceNumber || 'facture'}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading invoice PDF:', error);
+            alert(language === 'en' ? 'Unable to download PDF' : 'Impossible de télécharger le PDF');
+        } finally {
+            setDownloadLoadingId('');
+        }
+    };
 
     return (
         <div className="animate-fade-in space-y-6">
@@ -189,6 +210,8 @@ const Invoices = () => {
                                             t={t}
                                             onView={() => setShowDetailModal(invoice)}
                                             onPayment={() => setShowPaymentModal(invoice)}
+                                            onDownload={() => downloadInvoicePdf(invoice)}
+                                            downloading={downloadLoadingId === invoice.id}
                                         />
                                     ))}
                                 </tbody>
@@ -204,6 +227,8 @@ const Invoices = () => {
                                     t={t}
                                     onView={() => setShowDetailModal(invoice)}
                                     onPayment={() => setShowPaymentModal(invoice)}
+                                    onDownload={() => downloadInvoicePdf(invoice)}
+                                    downloading={downloadLoadingId === invoice.id}
                                 />
                             ))}
                         </div>
@@ -263,7 +288,7 @@ const MetricCard = ({ label, value, tone }) => {
     );
 };
 
-const InvoiceRow = ({ invoice, locale, t, onView, onPayment }) => (
+const InvoiceRow = ({ invoice, locale, t, onView, onPayment, onDownload, downloading }) => (
     <tr className="transition hover:bg-slate-50/80 dark:hover:bg-dark-700/40">
         <td className="px-5 py-5">
             <p className="font-bold text-primary-600 dark:text-primary-300">{invoice.invoiceNumber}</p>
@@ -280,6 +305,9 @@ const InvoiceRow = ({ invoice, locale, t, onView, onPayment }) => (
                 <IconButton title={t('staffInvoices.actions.view')} onClick={onView}>
                     <EyeIcon />
                 </IconButton>
+                <IconButton title="PDF" onClick={onDownload}>
+                    {downloading ? <SpinnerIcon /> : <DownloadIcon />}
+                </IconButton>
                 {invoice.status !== 'paid' && (
                     <IconButton title={t('staffInvoices.actions.recordPayment')} onClick={onPayment} tone="success">
                         <PaymentIcon />
@@ -290,7 +318,7 @@ const InvoiceRow = ({ invoice, locale, t, onView, onPayment }) => (
     </tr>
 );
 
-const InvoiceCard = ({ invoice, locale, t, onView, onPayment }) => (
+const InvoiceCard = ({ invoice, locale, t, onView, onPayment, onDownload, downloading }) => (
     <article className="p-5">
         <div className="flex items-start justify-between gap-3">
             <div>
@@ -309,6 +337,9 @@ const InvoiceCard = ({ invoice, locale, t, onView, onPayment }) => (
         <div className="mt-4 flex gap-2">
             <button onClick={onView} className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-dark-600 dark:text-slate-200 dark:hover:bg-dark-700">
                 {t('staffInvoices.actions.view')}
+            </button>
+            <button onClick={onDownload} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-dark-600 dark:text-slate-200 dark:hover:bg-dark-700">
+                {downloading ? '...' : 'PDF'}
             </button>
             {invoice.status !== 'paid' && (
                 <button onClick={onPayment} className="flex-1 rounded-xl bg-primary-500 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-500/20">
@@ -605,34 +636,80 @@ const PaymentModal = ({ invoice, locale, t, onClose, onSuccess }) => {
     );
 };
 
-const InvoiceDetailModal = ({ invoice, locale, t, onClose }) => (
-    <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content overflow-hidden p-0" onClick={(event) => event.stopPropagation()}>
-            <ModalHeader title={t('staffInvoices.detail.title')} subtitle={invoice.invoiceNumber} onClose={onClose} />
-            <div className="space-y-4 p-6">
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-dark-700/60">
-                    <div>
-                        <p className="font-bold text-slate-950 dark:text-white">{invoice.patientName}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">{invoice.patientEmail || '-'}</p>
+const InvoiceDetailModal = ({ invoice, locale, t, onClose }) => {
+    const [detail, setDetail] = useState(invoice);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.get(`/invoices/${invoice.id}`)
+            .then((response) => setDetail(response.data.data || invoice))
+            .catch(() => setDetail(invoice))
+            .finally(() => setLoading(false));
+    }, [invoice]);
+
+    const items = detail.items || [];
+    const payments = detail.payments || [];
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content max-w-3xl overflow-hidden p-0" onClick={(event) => event.stopPropagation()}>
+                <ModalHeader title={t('staffInvoices.detail.title')} subtitle={detail.invoiceNumber} onClose={onClose} />
+                <div className="space-y-4 p-6">
+                    <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-dark-700/60">
+                        <div>
+                            <p className="font-bold text-slate-950 dark:text-white">{detail.patientName}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{detail.patientEmail || '-'}</p>
+                            {detail.appointmentType && (
+                                <p className="mt-1 text-xs font-semibold text-primary-600 dark:text-primary-300">
+                                    {detail.appointmentType} · {formatDate(detail.appointmentStart, locale)}
+                                </p>
+                            )}
+                        </div>
+                        <StatusBadge status={detail.status} t={t} />
                     </div>
-                    <StatusBadge status={invoice.status} t={t} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <InfoTile label={t('staffInvoices.headers.date')} value={formatDate(detail.createdAt, locale)} />
+                        <InfoTile label={t('staffInvoices.headers.dueDate')} value={formatDate(detail.dueDate, locale)} />
+                        <InfoTile label={t('staffInvoices.detail.subtotal')} value={formatMoney(detail.subtotal, locale)} />
+                        <InfoTile label={t('staffInvoices.detail.tax')} value={formatMoney(detail.taxAmount, locale)} />
+                        <InfoTile label={t('staffInvoices.headers.amount')} value={formatMoney(detail.totalAmount, locale)} strong />
+                        <InfoTile label={t('staffInvoices.detail.paid')} value={formatMoney(detail.paidAmount, locale)} strong />
+                        <InfoTile label={t('staffInvoices.detail.balance')} value={formatMoney(detail.balance, locale)} warning />
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 dark:border-dark-700">
+                        <div className="border-b border-slate-100 px-4 py-3 text-sm font-bold text-slate-900 dark:border-dark-700 dark:text-white">
+                            {loading ? 'Chargement...' : 'Articles'}
+                        </div>
+                        {items.length > 0 ? items.map((item) => (
+                            <div key={item.id} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3 text-sm">
+                                <div>
+                                    <p className="font-semibold text-slate-900 dark:text-white">{item.description}</p>
+                                    <p className="text-slate-500 dark:text-slate-400">x{item.quantity} · {formatMoney(item.unit_price, locale)}</p>
+                                </div>
+                                <p className="font-bold text-slate-950 dark:text-white">{formatMoney(item.total, locale)}</p>
+                            </div>
+                        )) : (
+                            <p className="px-4 py-3 text-sm text-slate-500">Aucun article détaillé.</p>
+                        )}
+                    </div>
+                    {payments.length > 0 && (
+                        <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-900/30 dark:bg-emerald-900/10">
+                            <p className="font-bold text-emerald-800 dark:text-emerald-200">Paiements</p>
+                            {payments.map((payment) => (
+                                <p key={payment.id} className="mt-2 text-sm text-emerald-700 dark:text-emerald-200">
+                                    {formatDate(payment.payment_date, locale)} · {payment.payment_method} · {formatMoney(payment.amount, locale)}
+                                </p>
+                            ))}
+                        </div>
+                    )}
+                    <button onClick={onClose} className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50 dark:border-dark-600 dark:text-slate-200 dark:hover:bg-dark-700">
+                        {t('staffInvoices.actions.close')}
+                    </button>
                 </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                    <InfoTile label={t('staffInvoices.headers.date')} value={formatDate(invoice.createdAt, locale)} />
-                    <InfoTile label={t('staffInvoices.headers.dueDate')} value={formatDate(invoice.dueDate, locale)} />
-                    <InfoTile label={t('staffInvoices.detail.subtotal')} value={formatMoney(invoice.subtotal, locale)} />
-                    <InfoTile label={t('staffInvoices.detail.tax')} value={formatMoney(invoice.taxAmount, locale)} />
-                    <InfoTile label={t('staffInvoices.headers.amount')} value={formatMoney(invoice.totalAmount, locale)} strong />
-                    <InfoTile label={t('staffInvoices.detail.paid')} value={formatMoney(invoice.paidAmount, locale)} strong />
-                    <InfoTile label={t('staffInvoices.detail.balance')} value={formatMoney(invoice.balance, locale)} warning />
-                </div>
-                <button onClick={onClose} className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold text-slate-700 hover:bg-slate-50 dark:border-dark-600 dark:text-slate-200 dark:hover:bg-dark-700">
-                    {t('staffInvoices.actions.close')}
-                </button>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 const ModalHeader = ({ title, subtitle, onClose }) => (
     <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-slate-950 via-primary-700 to-medical-600 px-6 py-5 text-white">
@@ -699,6 +776,19 @@ const EyeIcon = () => (
 const PaymentIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+    </svg>
+);
+
+const DownloadIcon = () => (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v10m0 0l4-4m-4 4L8 9m-4 8v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+    </svg>
+);
+
+const SpinnerIcon = () => (
+    <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
     </svg>
 );
 

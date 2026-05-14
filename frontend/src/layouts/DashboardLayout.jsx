@@ -103,6 +103,7 @@ const DashboardLayout = () => {
     }, [searchTerm]);
 
     const isAdmin = isClinicAdmin(user);
+    const calendarHref = isAdmin ? '/admin/calendar' : '/calendar';
     const locale = language === 'en' ? 'en-US' : 'fr-FR';
     const closeSearch = () => {
         setSearchOpen(false);
@@ -126,24 +127,60 @@ const DashboardLayout = () => {
         navigate(loginPath, { replace: true });
     };
 
-    const navigation = [
-        ...(canAccessModule(user, 'dashboard') ? [{ name: t('nav.dashboard'), href: '/dashboard', icon: HomeIcon }] : []),
-        ...(canAccessModule(user, 'platformAccounts') ? [{ name: t('nav.platformAccounts'), href: '/admin/accounts', icon: UsersIcon }] : []),
-        ...(isAdmin ? [{ name: t('nav.adminDoctors'), href: '/admin/doctors', icon: UserBadgeIcon }] : []),
-        ...(canAccessModule(user, 'patients') ? [{ name: t('nav.patients'), href: '/patients', icon: UsersIcon }] : []),
-        ...(canAccessModule(user, 'animals') ? [{ name: t('nav.animals'), href: '/animals', icon: BugAntIcon }] : []),
-        ...(canAccessModule(user, 'appointments') ? [{ name: t('nav.appointments'), href: '/appointments', icon: CalendarIcon }] : []),
-        ...(canAccessModule(user, 'calendar') ? [{ name: t('nav.calendar'), href: '/calendar', icon: CalendarDaysIcon }] : []),
-        ...(canAccessModule(user, 'teleconsultations') ? [{ name: t('nav.teleconsultations'), href: '/teleconsultations', icon: VideoCameraIcon }] : []),
-        ...(canAccessModule(user, 'reviews') ? [{ name: t('nav.reviews'), href: '/reviews', icon: StarIcon }] : []),
-        ...(canAccessModule(user, 'billing') ? [{ name: t('nav.billing'), href: '/invoices', icon: DocumentIcon }] : []),
-        ...(canAccessModule(user, 'analytics') ? [{ name: t('nav.analytics'), href: '/analytics', icon: ChartIcon }] : []),
-        ...(canAccessModule(user, 'dental') ? [{ name: t('nav.dental'), href: '/dental', icon: SparklesIcon }] : []),
-        ...(canAccessModule(user, 'aesthetic') ? [{ name: t('nav.aesthetic'), href: '/aesthetic', icon: CubeTransparentIcon }] : []),
-        ...(canAccessModule(user, 'veterinary') ? [{ name: t('nav.veterinary'), href: '/veterinary', icon: SparklesIcon }] : []),
-        ...(isAdmin ? [{ name: t('nav.demoRequests'), href: '/admin/demo-requests', icon: ClipboardCheckIcon }] : []),
-        ...(canAccessModule(user, 'settings') ? [{ name: t('nav.settings'), href: '/settings', icon: SettingsIcon }] : []),
-    ];
+    const navigationGroups = [
+        {
+            label: t('navGroups.main'),
+            items: [
+                ...(canAccessModule(user, 'dashboard') ? [{ name: t('nav.dashboard'), href: '/dashboard', icon: HomeIcon }] : [])
+            ]
+        },
+        {
+            label: t('navGroups.administration'),
+            items: [
+                ...(canAccessModule(user, 'platformAccounts') ? [{ name: t('nav.manageUsers'), href: '/admin/accounts', icon: UsersIcon }] : []),
+                ...(isAdmin ? [{ name: t('nav.adminDoctors'), href: '/admin/doctors', icon: UserBadgeIcon }] : []),
+                ...(isAdmin ? [{ name: t('nav.demoRequests'), href: '/admin/demo-requests', icon: ClipboardCheckIcon }] : [])
+            ]
+        },
+        {
+            label: t('navGroups.clinic'),
+            items: [
+                ...(canAccessModule(user, 'patients') ? [{ name: t('nav.patients'), href: '/patients', icon: UsersIcon }] : []),
+                ...(canAccessModule(user, 'animals') ? [{ name: t('nav.animals'), href: '/animals', icon: BugAntIcon }] : []),
+                ...(canAccessModule(user, 'reviews') ? [{ name: t('nav.reviews'), href: '/reviews', icon: StarIcon }] : [])
+            ]
+        },
+        {
+            label: t('navGroups.planning'),
+            items: [
+                ...(canAccessModule(user, 'appointments') ? [{ name: t('nav.appointments'), href: '/appointments', icon: CalendarIcon }] : []),
+                ...(canAccessModule(user, 'waitlist') ? [{ name: t('nav.waitlist'), href: '/waitlist', icon: HourglassIcon }] : []),
+                ...(canAccessModule(user, 'calendar') ? [{ name: t('nav.calendar'), href: calendarHref, icon: CalendarDaysIcon }] : []),
+                ...(canAccessModule(user, 'teleconsultations') ? [{ name: t('nav.teleconsultations'), href: '/teleconsultations', icon: VideoCameraIcon }] : [])
+            ]
+        },
+        {
+            label: t('navGroups.finance'),
+            items: [
+                ...(canAccessModule(user, 'billing') ? [{ name: t('nav.billing'), href: '/invoices', icon: DocumentIcon }] : []),
+                ...(canAccessModule(user, 'analytics') ? [{ name: t('nav.analytics'), href: '/analytics', icon: ChartIcon }] : [])
+            ]
+        },
+        {
+            label: t('navGroups.modules'),
+            items: [
+                ...(canAccessModule(user, 'dental') ? [{ name: t('nav.dental'), href: '/dental', icon: SparklesIcon }] : []),
+                ...(canAccessModule(user, 'aesthetic') ? [{ name: t('nav.aesthetic'), href: '/aesthetic', icon: CubeTransparentIcon }] : []),
+                ...(canAccessModule(user, 'veterinary') ? [{ name: t('nav.veterinary'), href: '/veterinary', icon: SparklesIcon }] : [])
+            ]
+        },
+        {
+            label: t('navGroups.system'),
+            items: [
+                ...(canAccessModule(user, 'settings') ? [{ name: t('nav.settings'), href: '/settings', icon: SettingsIcon }] : [])
+            ]
+        }
+    ].filter((group) => group.items.length > 0);
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-dark-900 transition-colors duration-300">
@@ -176,19 +213,33 @@ const DashboardLayout = () => {
                 </div>
 
                 {/* Navigation */}
-                <nav className="p-4 space-y-2">
-                    {navigation.map((item) => (
-                        <NavLink
-                            key={item.name}
-                            to={item.href}
-                            className={({ isActive }) =>
-                                `sidebar-link ${isActive ? 'active' : ''} ${!sidebarOpen ? 'justify-center' : ''}`
-                            }
-                        >
-                            <item.icon className="w-5 h-5 flex-shrink-0" />
-                            {sidebarOpen && <span>{item.name}</span>}
-                        </NavLink>
-                    ))}
+                <nav className="h-[calc(100vh-8.5rem)] overflow-y-auto px-3 py-4">
+                    <div className="space-y-5 pb-24">
+                        {navigationGroups.map((group) => (
+                            <div key={group.label} className="space-y-1.5">
+                                {sidebarOpen && (
+                                    <p className="px-3 text-[11px] font-extrabold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
+                                        {group.label}
+                                    </p>
+                                )}
+                                <div className="space-y-1">
+                                    {group.items.map((item) => (
+                                        <NavLink
+                                            key={item.href}
+                                            to={item.href}
+                                            className={({ isActive }) =>
+                                                `group flex min-h-11 items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold transition-all ${isActive ? 'bg-primary-50 text-primary-700 shadow-sm ring-1 ring-primary-100 dark:bg-primary-900/25 dark:text-primary-200 dark:ring-primary-800/40' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-dark-700/70 dark:hover:text-white'} ${!sidebarOpen ? 'justify-center' : ''}`
+                                            }
+                                            title={!sidebarOpen ? item.name : undefined}
+                                        >
+                                            <item.icon className="h-5 w-5 flex-shrink-0" />
+                                            {sidebarOpen && <span className="truncate">{item.name}</span>}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </nav>
 
                 {/* User section - Minimal */}
@@ -546,6 +597,12 @@ const ClipboardCheckIcon = (props) => (
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3h6a1 1 0 011 1v2H8V4a1 1 0 011-1z" />
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13l2 2 4-4" />
+    </svg>
+);
+
+const HourglassIcon = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 3h12M6 21h12M8 3v4a4 4 0 001.172 2.828L12 12l2.828-2.172A4 4 0 0016 7V3M8 21v-4a4 4 0 011.172-2.828L12 12l2.828 2.172A4 4 0 0116 17v4" />
     </svg>
 );
 

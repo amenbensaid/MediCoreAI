@@ -231,8 +231,18 @@ const AdminDoctors = () => {
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <h2 className="truncate text-2xl font-extrabold text-slate-950 dark:text-white">{selectedDoctor.fullName}</h2>
                                                 <StatusPill active={selectedDoctor.isActive} t={t} />
+                                                {selectedDoctor.isClinicAdmin && (
+                                                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-xs font-extrabold text-violet-700 dark:bg-violet-900/20 dark:text-violet-200">
+                                                        {t('staffDoctors.roleClinicAdmin')}
+                                                    </span>
+                                                )}
                                             </div>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">{selectedDoctor.specialty || '-'} • {selectedDoctor.email}</p>
+                                            {selectedDoctor.clinic?.name && (
+                                                <p className="mt-1 text-sm font-bold text-slate-600 dark:text-slate-300">
+                                                    {selectedDoctor.clinic.name}{selectedDoctor.clinic.city ? ` · ${selectedDoctor.clinic.city}` : ''}
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                     <button onClick={() => openEdit(selectedDoctor)} className="btn-secondary text-sm">{t('staffDoctors.actions.edit')}</button>
@@ -296,8 +306,20 @@ const DoctorCard = ({ doctor, selected, money, t, onSelect, onEdit, onDeactivate
                     <p className="truncate font-extrabold text-slate-950 dark:text-white">{doctor.fullName}</p>
                     <StatusPill active={doctor.isActive} t={t} />
                 </div>
-                <p className="mt-1 truncate text-sm text-primary-600 dark:text-primary-300">{doctor.specialty || '-'}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm text-primary-600 dark:text-primary-300">{doctor.specialty || '-'}</p>
+                    {doctor.isClinicAdmin && (
+                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-extrabold text-violet-700 dark:bg-violet-900/20 dark:text-violet-200">
+                            {t('staffDoctors.roleClinicAdmin')}
+                        </span>
+                    )}
+                </div>
                 <p className="truncate text-xs text-slate-500 dark:text-slate-400">{doctor.email}</p>
+                {doctor.clinic?.name && (
+                    <p className="mt-1 truncate text-xs font-bold text-slate-500 dark:text-slate-400">
+                        {doctor.clinic.name}{doctor.clinic.city ? ` · ${doctor.clinic.city}` : ''}
+                    </p>
+                )}
             </div>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-2 text-xs">

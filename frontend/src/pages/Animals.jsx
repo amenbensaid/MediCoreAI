@@ -310,24 +310,35 @@ const AnimalModal = ({ animal, patients, t, onClose, onSuccess }) => {
     };
 
     return (
-        <div className="modal-overlay items-start overflow-y-auto py-6" onClick={onClose}>
-            <div className="modal-content max-w-4xl overflow-hidden p-0" onClick={(event) => event.stopPropagation()}>
-                <div className="flex items-start justify-between gap-4 bg-gradient-to-r from-slate-950 via-primary-700 to-medical-600 px-6 py-5 text-white">
-                    <div>
-                        <h2 className="text-xl font-extrabold">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" onClick={onClose}>
+            <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-dark-800" onClick={(event) => event.stopPropagation()}>
+                <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 bg-white px-6 py-5 dark:border-dark-700 dark:bg-dark-800">
+                    <div className="flex items-start gap-4">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary-50 text-3xl dark:bg-primary-900/20">
+                            {getSpeciesIcon(form.species)}
+                        </div>
+                        <div>
+                        <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-300">
+                            {t('nav.animals')}
+                        </p>
+                        <h2 className="mt-1 text-2xl font-extrabold text-slate-950 dark:text-white">
                             {animal ? t('staffAnimals.modal.editTitle') : t('staffAnimals.modal.createTitle')}
                         </h2>
-                        <p className="mt-1 text-sm text-white/75">{t('staffAnimals.modal.subtitle')}</p>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('staffAnimals.modal.subtitle')}</p>
+                        </div>
                     </div>
-                    <button onClick={onClose} className="rounded-xl p-2 text-white/80 hover:bg-white/10 hover:text-white">
+                    <button type="button" onClick={onClose} className="rounded-2xl border border-slate-200 bg-white p-3 text-slate-500 shadow-sm transition hover:border-primary-200 hover:text-primary-700 dark:border-dark-600 dark:bg-dark-700 dark:text-slate-200">
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-5 p-6">
-                    <div className="grid gap-4 md:grid-cols-2">
+                <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                    <div className="rounded-3xl border border-slate-100 bg-slate-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/30">
+                        <p className="mb-4 text-sm font-extrabold text-slate-900 dark:text-white">{t('staffAnimals.fields.owner')}</p>
+                        <div className="grid gap-4 md:grid-cols-2">
                         <Field label={t('staffAnimals.fields.owner')}>
                             <select value={form.patientId} onChange={(event) => setField('patientId', event.target.value)} className="input-field">
                                 <option value="">{t('staffAnimals.fields.noOwner')}</option>
@@ -341,6 +352,12 @@ const AnimalModal = ({ animal, patients, t, onClose, onSuccess }) => {
                         <Field label={t('staffAnimals.fields.name')}>
                             <input value={form.name} onChange={(event) => setField('name', event.target.value)} className="input-field" required />
                         </Field>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 rounded-3xl border border-slate-100 bg-white p-4 dark:border-dark-700 dark:bg-dark-800">
+                        <p className="mb-4 text-sm font-extrabold text-slate-900 dark:text-white">{t('staffAnimals.modal.subtitle')}</p>
+                        <div className="grid gap-4 md:grid-cols-2">
                         <Field label={t('staffAnimals.fields.species')}>
                             <select value={form.species} onChange={(event) => setField('species', event.target.value)} className="input-field" required>
                                 {speciesOptions.map((species) => (
@@ -379,8 +396,10 @@ const AnimalModal = ({ animal, patients, t, onClose, onSuccess }) => {
                         <Field label={t('staffAnimals.fields.insuranceNumber')}>
                             <input value={form.insuranceNumber} onChange={(event) => setField('insuranceNumber', event.target.value)} className="input-field" />
                         </Field>
+                        </div>
                     </div>
 
+                    <div className="mt-5 rounded-3xl border border-slate-100 bg-white p-4 dark:border-dark-700 dark:bg-dark-800">
                     <div className="grid gap-4 md:grid-cols-2">
                         <Field label={t('staffAnimals.fields.allergies')}>
                             <input value={form.allergies} onChange={(event) => setField('allergies', event.target.value)} className="input-field" />
@@ -390,22 +409,26 @@ const AnimalModal = ({ animal, patients, t, onClose, onSuccess }) => {
                         </Field>
                     </div>
 
+                    <div className="mt-4">
                     <Field label={t('staffAnimals.fields.notes')}>
-                        <textarea value={form.notes} onChange={(event) => setField('notes', event.target.value)} className="input-field" rows={3} />
+                        <textarea value={form.notes} onChange={(event) => setField('notes', event.target.value)} className="input-field min-h-[110px]" />
                     </Field>
+                    </div>
 
                     {animal && (
-                        <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-dark-900/40">
+                        <label className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 p-4 dark:bg-dark-900/40">
                             <input type="checkbox" checked={form.isActive} onChange={(event) => setField('isActive', event.target.checked)} />
                             <span className="font-semibold text-slate-800 dark:text-slate-100">{t('staffAnimals.active')}</span>
                         </label>
                     )}
+                    </div>
 
-                    {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-300">{error}</p>}
+                    {error && <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-300">{error}</p>}
+                    </div>
 
-                    <div className="flex gap-3 pt-2">
-                        <button type="button" onClick={onClose} className="flex-1 btn-secondary">{t('staffAnimals.actions.cancel')}</button>
-                        <button type="submit" disabled={saving} className="flex-1 btn-primary disabled:opacity-60">
+                    <div className="flex shrink-0 flex-col-reverse gap-3 border-t border-slate-100 bg-white px-6 py-4 dark:border-dark-700 dark:bg-dark-800 sm:flex-row sm:justify-end">
+                        <button type="button" onClick={onClose} className="btn-secondary sm:min-w-36">{t('staffAnimals.actions.cancel')}</button>
+                        <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60 sm:min-w-40">
                             {saving ? t('staffAnimals.actions.saving') : animal ? t('staffAnimals.actions.update') : t('staffAnimals.actions.create')}
                         </button>
                     </div>

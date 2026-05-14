@@ -63,6 +63,7 @@ const secretaryPermissionDefaults = {
     dashboard: true,
     patients: true,
     appointments: true,
+    waitlist: true,
     calendar: true,
     teleconsultations: false,
     reviews: false,
@@ -71,10 +72,37 @@ const secretaryPermissionDefaults = {
     settings: false
 };
 
+const platformPermissionDefaults = {
+    dashboard: true,
+    platformAccounts: false,
+    adminDoctors: false,
+    demoRequests: false,
+    patients: true,
+    animals: false,
+    appointments: true,
+    waitlist: true,
+    calendar: true,
+    teleconsultations: true,
+    reviews: true,
+    billing: true,
+    analytics: true,
+    dental: false,
+    aesthetic: false,
+    veterinary: false,
+    settings: false
+};
+
 const normalizeSecretaryPermissions = (permissions = {}) => Object.fromEntries(
     Object.keys(secretaryPermissionDefaults).map((key) => [
         key,
         Boolean(permissions[key] ?? secretaryPermissionDefaults[key])
+    ])
+);
+
+const normalizePlatformPermissions = (permissions = {}) => Object.fromEntries(
+    Object.keys(platformPermissionDefaults).map((key) => [
+        key,
+        Boolean(permissions[key] ?? platformPermissionDefaults[key])
     ])
 );
 
@@ -123,7 +151,10 @@ const buildPractitionerAdminPayload = (row) => ({
     email: row.email,
     firstName: row.first_name,
     lastName: row.last_name,
-    fullName: `Dr. ${row.first_name} ${row.last_name}`,
+    role: row.role,
+    fullName: row.clinic_role === 'admin'
+        ? `${row.first_name} ${row.last_name}`
+        : `Dr. ${row.first_name} ${row.last_name}`,
     phone: row.phone || '',
     specialty: row.specialty || '',
     licenseNumber: row.license_number || '',
@@ -134,6 +165,13 @@ const buildPractitionerAdminPayload = (row) => ({
     paymentPolicy: row.payment_policy || 'full-onsite',
     bio: row.bio || '',
     clinicRole: row.clinic_role || 'practitioner',
+    isClinicAdmin: row.clinic_role === 'admin',
+    clinic: row.clinic_id ? {
+        id: row.clinic_id,
+        name: row.clinic_name,
+        type: row.clinic_type,
+        city: row.clinic_city
+    } : null,
     createdAt: row.created_at,
     metrics: {
         patients: Number(row.patient_count || 0),
@@ -157,7 +195,10 @@ const assertPractitionerInClinic = async (client, practitionerId, clinicId) => {
          JOIN user_clinics uc ON uc.user_id = u.id
          WHERE u.id = $1
            AND uc.clinic_id = $2
-           AND u.role = 'practitioner'`,
+           AND (
+               u.role = 'practitioner'
+               OR (u.role = 'admin' AND uc.role = 'admin')
+           )`,
         [practitionerId, clinicId]
     );
 
@@ -761,7 +802,7 @@ router.get('/platform/accounts', authMiddleware, requireRole('admin'), async (re
         const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
         const result = await db.query(
             `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.role, u.specialty,
-                    u.is_active, u.is_verified, u.created_at, u.last_login,
+                    u.avatar_url, u.is_active, u.is_verified, u.access_permissions, u.created_at, u.last_login,
                     u.assigned_practitioner_id,
                     c.id AS clinic_id, c.name AS clinic_name, c.type AS clinic_type,
                     c.phone AS clinic_phone, c.city AS clinic_city, c.settings AS clinic_settings,
@@ -798,8 +839,10 @@ router.get('/platform/accounts', authMiddleware, requireRole('admin'), async (re
                     phone: row.phone,
                     role: row.role,
                     specialty: row.specialty,
+                    avatarUrl: row.avatar_url ? resolveStoredUploadUrl(row.avatar_url) : null,
                     isActive: Boolean(row.is_active),
                     isVerified: Boolean(row.is_verified),
+                    accessPermissions: row.access_permissions || {},
                     createdAt: row.created_at,
                     lastLogin: row.last_login,
                     assignedPractitionerId: row.assigned_practitioner_id,
@@ -977,6 +1020,152 @@ router.patch('/platform/accounts/:id/approval', authMiddleware, requireRole('adm
     } catch (error) {
         console.error('Failed to update account approval:', error);
         res.status(500).json({ success: false, message: 'Failed to update account approval' });
+    }
+});
+
+router.patch('/platform/accounts/:id/permissions', authMiddleware, requireRole('admin'), async (req, res) => {
+    try {
+        const { permissions } = req.body;
+        if (!permissions || typeof permissions !== 'object' || Array.isArray(permissions)) {
+            return res.status(400).json({ success: false, message: 'Permissions are required' });
+        }
+
+        const normalizedPermissions = normalizePlatformPermissions(permissions);
+        const result = await db.query(
+            `UPDATE users
+             SET access_permissions = $1,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2
+             RETURNING id, access_permissions`,
+            [JSON.stringify(normalizedPermissions), req.params.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Account not found' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Account permissions updated',
+            data: {
+                id: result.rows[0].id,
+                accessPermissions: result.rows[0].access_permissions || {}
+            }
+        });
+    } catch (error) {
+        console.error('Failed to update account permissions:', error);
+        res.status(500).json({ success: false, message: 'Failed to update account permissions' });
+    }
+});
+
+router.post('/platform/accounts', authMiddleware, requireRole('admin'), [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    body('firstName').trim().notEmpty().withMessage('First name is required'),
+    body('lastName').trim().notEmpty().withMessage('Last name is required'),
+    body('role').isIn(['admin', 'practitioner', 'patient', 'secretary']).withMessage('Invalid role')
+], async (req, res) => {
+    try {
+        const message = getValidationMessage(req);
+        if (message) return res.status(400).json({ success: false, message });
+
+        const { email, password, firstName, lastName, phone, role, specialty, avatarUrl, isActive, isVerified, permissions } = req.body;
+        const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ success: false, message: 'Email already registered' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const normalizedPermissions = normalizePlatformPermissions(permissions || {});
+        const result = await db.query(
+            `INSERT INTO users (
+                email, password_hash, first_name, last_name, phone, role, specialty, avatar_url,
+                is_active, is_verified, access_permissions, created_by_user_id
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             RETURNING id, email, first_name, last_name, phone, role, specialty, avatar_url,
+                       is_active, is_verified, access_permissions, created_at, last_login`,
+            [
+                email,
+                passwordHash,
+                firstName,
+                lastName,
+                phone || null,
+                role,
+                specialty || null,
+                normalizeAvatarUrl(avatarUrl),
+                typeof isActive === 'boolean' ? isActive : true,
+                typeof isVerified === 'boolean' ? isVerified : true,
+                JSON.stringify(normalizedPermissions),
+                req.user.id
+            ]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Account created',
+            data: result.rows[0]
+        });
+    } catch (error) {
+        console.error('Failed to create platform account:', error);
+        res.status(500).json({ success: false, message: 'Failed to create account' });
+    }
+});
+
+router.put('/platform/accounts/:id', authMiddleware, requireRole('admin'), async (req, res) => {
+    try {
+        const { firstName, lastName, phone, role, specialty, avatarUrl, isActive, isVerified, password, permissions } = req.body;
+        const normalizedRole = ['admin', 'practitioner', 'patient', 'secretary'].includes(role) ? role : undefined;
+        const normalizedPermissions = permissions ? normalizePlatformPermissions(permissions) : null;
+        const normalizedAvatarUrl = avatarUrl === undefined ? undefined : normalizeAvatarUrl(avatarUrl);
+        const params = [
+            firstName || null,
+            lastName || null,
+            phone ?? null,
+            normalizedRole,
+            specialty ?? null,
+            normalizedAvatarUrl,
+            typeof isActive === 'boolean' ? isActive : null,
+            typeof isVerified === 'boolean' ? isVerified : null,
+            normalizedPermissions ? JSON.stringify(normalizedPermissions) : null,
+            req.params.id
+        ];
+        let passwordClause = '';
+
+        if (password) {
+            if (String(password).length < 8) {
+                return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+            }
+            params.push(await bcrypt.hash(password, 10));
+            passwordClause = `, password_hash = $${params.length}`;
+        }
+
+        const result = await db.query(
+            `UPDATE users
+             SET first_name = COALESCE($1, first_name),
+                 last_name = COALESCE($2, last_name),
+                 phone = COALESCE($3, phone),
+                 role = COALESCE($4, role),
+                 specialty = COALESCE($5, specialty),
+                 avatar_url = CASE WHEN $6::text IS NULL THEN avatar_url ELSE $6 END,
+                 is_active = COALESCE($7, is_active),
+                 is_verified = COALESCE($8, is_verified),
+                 access_permissions = COALESCE($9, access_permissions),
+                 updated_at = CURRENT_TIMESTAMP
+                 ${passwordClause}
+             WHERE id = $10
+             RETURNING id, email, first_name, last_name, phone, role, specialty, avatar_url,
+                       is_active, is_verified, access_permissions, created_at, last_login`,
+            params
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Account not found' });
+        }
+
+        res.json({ success: true, message: 'Account updated', data: result.rows[0] });
+    } catch (error) {
+        console.error('Failed to update platform account:', error);
+        res.status(500).json({ success: false, message: 'Failed to update account' });
     }
 });
 
@@ -1210,15 +1399,20 @@ router.delete('/secretaries/:id', authMiddleware, async (req, res) => {
 });
 
 router.get('/practitioners/admin', authMiddleware, async (req, res) => {
-    if (!requireClinicAdmin(req, res)) return;
+    const isPlatformScope = req.user.role === 'admin' && !req.user.clinicId;
+    if (!isPlatformScope && !requireClinicAdmin(req, res)) return;
 
     try {
         const { search = '', status = 'all' } = req.query;
-        const params = [req.user.clinicId];
+        const params = [];
         const filters = [
-            `uc.clinic_id = $1`,
-            `u.role = 'practitioner'`
+            `(u.role = 'practitioner' OR (u.role = 'admin' AND uc.role = 'admin'))`
         ];
+
+        if (!isPlatformScope) {
+            params.push(req.user.clinicId);
+            filters.push(`uc.clinic_id = $${params.length}`);
+        }
 
         if (status === 'active') {
             filters.push('u.is_active = true');
@@ -1241,6 +1435,7 @@ router.get('/practitioners/admin', authMiddleware, async (req, res) => {
             `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.role, u.specialty,
                     u.license_number, u.avatar_url, u.is_active, u.created_at,
                     u.consultation_fee, u.accepts_online, u.payment_policy, u.bio,
+                    c.id AS clinic_id, c.name AS clinic_name, c.type AS clinic_type, c.city AS clinic_city,
                     uc.role AS clinic_role,
                     COALESCE(patient_stats.patient_count, 0) AS patient_count,
                     COALESCE(appointment_stats.appointment_count, 0) AS appointment_count,
@@ -1252,37 +1447,38 @@ router.get('/practitioners/admin', authMiddleware, async (req, res) => {
                     COALESCE(review_stats.average_rating, 0) AS average_rating,
                     COALESCE(review_stats.review_count, 0) AS review_count
              FROM users u
-             JOIN user_clinics uc ON uc.user_id = u.id
+             LEFT JOIN user_clinics uc ON uc.user_id = u.id
+             LEFT JOIN clinics c ON c.id = uc.clinic_id
              LEFT JOIN LATERAL (
                  SELECT COUNT(DISTINCT a.patient_id) AS patient_count
                  FROM appointments a
-                 WHERE a.clinic_id = uc.clinic_id AND a.practitioner_id = u.id
+                 WHERE a.practitioner_id = u.id ${isPlatformScope ? '' : 'AND a.clinic_id = uc.clinic_id'}
              ) patient_stats ON true
              LEFT JOIN LATERAL (
                  SELECT COUNT(*) AS appointment_count,
                         COUNT(*) FILTER (WHERE a.start_time >= CURRENT_TIMESTAMP) AS upcoming_appointment_count
                  FROM appointments a
-                 WHERE a.clinic_id = uc.clinic_id AND a.practitioner_id = u.id
+                 WHERE a.practitioner_id = u.id ${isPlatformScope ? '' : 'AND a.clinic_id = uc.clinic_id'}
              ) appointment_stats ON true
              LEFT JOIN LATERAL (
                  SELECT SUM(i.total_amount) AS revenue_total,
                         SUM(i.paid_amount) AS revenue_collected,
                         SUM(i.total_amount - i.paid_amount) AS revenue_outstanding
                  FROM invoices i
-                 WHERE i.clinic_id = uc.clinic_id AND i.practitioner_id = u.id
+                 WHERE i.practitioner_id = u.id ${isPlatformScope ? '' : 'AND i.clinic_id = uc.clinic_id'}
              ) invoice_stats ON true
              LEFT JOIN LATERAL (
                  SELECT COUNT(*) AS secretary_count
                  FROM users secretary
                  JOIN user_clinics secretary_clinic ON secretary_clinic.user_id = secretary.id
-                 WHERE secretary_clinic.clinic_id = uc.clinic_id
-                   AND secretary.role = 'secretary'
+                 WHERE secretary.role = 'secretary'
                    AND secretary.assigned_practitioner_id = u.id
+                   ${isPlatformScope ? '' : 'AND secretary_clinic.clinic_id = uc.clinic_id'}
              ) secretary_stats ON true
              LEFT JOIN LATERAL (
                  SELECT AVG(rating) AS average_rating, COUNT(*) AS review_count
                  FROM practitioner_reviews pr
-                 WHERE pr.clinic_id = uc.clinic_id AND pr.practitioner_id = u.id
+                 WHERE pr.practitioner_id = u.id ${isPlatformScope ? '' : 'AND pr.clinic_id = uc.clinic_id'}
              ) review_stats ON true
              WHERE ${filters.join(' AND ')}
              ORDER BY u.is_active DESC, u.last_name, u.first_name`,
@@ -1297,20 +1493,27 @@ router.get('/practitioners/admin', authMiddleware, async (req, res) => {
 });
 
 router.get('/practitioners/:id/admin-overview', authMiddleware, async (req, res) => {
-    if (!requireClinicAdmin(req, res)) return;
+    const isPlatformScope = req.user.role === 'admin' && !req.user.clinicId;
+    if (!isPlatformScope && !requireClinicAdmin(req, res)) return;
 
     try {
+        const practitionerParams = isPlatformScope ? [req.params.id] : [req.params.id, req.user.clinicId];
         const practitionerResult = await db.query(
             `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.role, u.specialty,
                     u.license_number, u.avatar_url, u.is_active, u.created_at,
                     u.consultation_fee, u.accepts_online, u.payment_policy, u.bio,
-                    u.calendar_preferences, uc.role AS clinic_role
+                    u.calendar_preferences, uc.role AS clinic_role,
+                    c.id AS clinic_id, c.name AS clinic_name, c.type AS clinic_type, c.city AS clinic_city
              FROM users u
-             JOIN user_clinics uc ON uc.user_id = u.id
+             LEFT JOIN user_clinics uc ON uc.user_id = u.id
+             LEFT JOIN clinics c ON c.id = uc.clinic_id
              WHERE u.id = $1
-               AND uc.clinic_id = $2
-               AND u.role = 'practitioner'`,
-            [req.params.id, req.user.clinicId]
+               ${isPlatformScope ? '' : 'AND uc.clinic_id = $2'}
+               AND (
+                   u.role = 'practitioner'
+                   OR (u.role = 'admin' AND uc.role = 'admin')
+               )`,
+            practitionerParams
         );
 
         if (practitionerResult.rows.length === 0) {
@@ -1323,20 +1526,20 @@ router.get('/practitioners/:id/admin-overview', authMiddleware, async (req, res)
                         p.email, p.phone, p.avatar_url, p.is_active, MAX(a.start_time) OVER (PARTITION BY p.id) AS last_visit
                  FROM patients p
                  JOIN appointments a ON a.patient_id = p.id
-                 WHERE a.clinic_id = $1 AND a.practitioner_id = $2
+                 WHERE ${isPlatformScope ? 'a.practitioner_id = $1' : 'a.clinic_id = $1 AND a.practitioner_id = $2'}
                  ORDER BY p.id, a.start_time DESC
                  LIMIT 12`,
-                [req.user.clinicId, req.params.id]
+                isPlatformScope ? [req.params.id] : [req.user.clinicId, req.params.id]
             ),
             db.query(
                 `SELECT a.id, a.appointment_type, a.status, a.start_time, a.end_time,
                         p.first_name, p.last_name, p.avatar_url
                  FROM appointments a
                  LEFT JOIN patients p ON p.id = a.patient_id
-                 WHERE a.clinic_id = $1 AND a.practitioner_id = $2
+                 WHERE ${isPlatformScope ? 'a.practitioner_id = $1' : 'a.clinic_id = $1 AND a.practitioner_id = $2'}
                  ORDER BY a.start_time DESC
                  LIMIT 12`,
-                [req.user.clinicId, req.params.id]
+                isPlatformScope ? [req.params.id] : [req.user.clinicId, req.params.id]
             ),
             db.query(
                 `SELECT status,
@@ -1345,21 +1548,20 @@ router.get('/practitioners/:id/admin-overview', authMiddleware, async (req, res)
                         SUM(paid_amount) AS paid,
                         SUM(total_amount - paid_amount) AS balance
                  FROM invoices
-                 WHERE clinic_id = $1 AND practitioner_id = $2
+                 WHERE ${isPlatformScope ? 'practitioner_id = $1' : 'clinic_id = $1 AND practitioner_id = $2'}
                  GROUP BY status`,
-                [req.user.clinicId, req.params.id]
+                isPlatformScope ? [req.params.id] : [req.user.clinicId, req.params.id]
             ),
             db.query(
                 `SELECT secretary.id, secretary.email, secretary.first_name, secretary.last_name,
                         secretary.phone, secretary.is_active, secretary.access_permissions,
                         secretary.assigned_practitioner_id, secretary.created_at, secretary.last_login
                  FROM users secretary
-                 JOIN user_clinics uc ON uc.user_id = secretary.id
-                 WHERE uc.clinic_id = $1
-                   AND secretary.role = 'secretary'
-                   AND secretary.assigned_practitioner_id = $2
+                 LEFT JOIN user_clinics uc ON uc.user_id = secretary.id
+                 WHERE secretary.role = 'secretary'
+                   AND ${isPlatformScope ? 'secretary.assigned_practitioner_id = $1' : 'uc.clinic_id = $1 AND secretary.assigned_practitioner_id = $2'}
                  ORDER BY secretary.created_at DESC`,
-                [req.user.clinicId, req.params.id]
+                isPlatformScope ? [req.params.id] : [req.user.clinicId, req.params.id]
             )
         ]);
 
@@ -1583,7 +1785,10 @@ router.put('/practitioners/:id', authMiddleware, async (req, res) => {
              WHERE u.id = $13
                AND uc.user_id = u.id
                AND uc.clinic_id = $14
-               AND u.role = 'practitioner'
+               AND (
+                   u.role = 'practitioner'
+                   OR (u.role = 'admin' AND uc.role = 'admin')
+               )
              RETURNING u.id, u.email, u.first_name, u.last_name, u.phone, u.role, u.specialty,
                        u.license_number, u.avatar_url, u.is_active, u.created_at,
                        u.consultation_fee, u.accepts_online, u.payment_policy, u.bio, uc.role AS clinic_role`,
@@ -1616,7 +1821,10 @@ router.delete('/practitioners/:id', authMiddleware, async (req, res) => {
              WHERE u.id = $1
                AND uc.user_id = u.id
                AND uc.clinic_id = $2
-               AND u.role = 'practitioner'
+               AND (
+                   u.role = 'practitioner'
+                   OR (u.role = 'admin' AND uc.role = 'admin')
+               )
              RETURNING u.id`,
             [req.params.id, req.user.clinicId]
         );
@@ -1635,11 +1843,14 @@ router.delete('/practitioners/:id', authMiddleware, async (req, res) => {
 router.get('/practitioners', authMiddleware, async (req, res) => {
     try {
         const result = await db.query(
-            `SELECT u.id, u.first_name, u.last_name, u.specialty
+            `SELECT u.id, u.first_name, u.last_name, u.role, u.specialty, uc.role AS clinic_role
              FROM users u
              JOIN user_clinics uc ON u.id = uc.user_id
              WHERE uc.clinic_id = $1
-               AND u.role = 'practitioner'
+               AND (
+                   u.role = 'practitioner'
+                   OR (u.role = 'admin' AND uc.role = 'admin')
+               )
                AND u.is_active = true
              ORDER BY u.last_name, u.first_name`,
             [req.user.clinicId]
@@ -1649,7 +1860,7 @@ router.get('/practitioners', authMiddleware, async (req, res) => {
             success: true,
             data: result.rows.map((entry) => ({
                 id: entry.id,
-                name: `Dr. ${entry.first_name} ${entry.last_name}`,
+                name: entry.clinic_role === 'admin' ? `${entry.first_name} ${entry.last_name}` : `Dr. ${entry.first_name} ${entry.last_name}`,
                 specialty: entry.specialty
             }))
         });

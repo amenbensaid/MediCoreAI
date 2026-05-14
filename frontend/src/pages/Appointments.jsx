@@ -46,6 +46,7 @@ const Appointments = () => {
     const [editingAppointment, setEditingAppointment] = useState(null);
     const [confirmingAppointment, setConfirmingAppointment] = useState(null);
     const [preparingAppointment, setPreparingAppointment] = useState(null);
+    const [followUpPreset, setFollowUpPreset] = useState(null);
     const [filter, setFilter] = useState('all');
     const [syncingAppointmentId, setSyncingAppointmentId] = useState(null);
     const [feedback, setFeedback] = useState({ type: '', message: '' });
@@ -179,6 +180,17 @@ const Appointments = () => {
         } finally {
             setSyncingAppointmentId(null);
         }
+    };
+
+    const handlePlanFollowUp = (appointment) => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setFollowUpPreset({
+            patientId: appointment.patientId || '',
+            date: getDayKey(tomorrow),
+            type: language === 'en' ? 'Follow-up' : 'Suivi'
+        });
+        setShowModal(true);
     };
 
     const handlePrepareAppointment = async (appointment, preparation = {}) => {
@@ -476,6 +488,18 @@ const Appointments = () => {
                                                         </svg>
                                                     </button>
                                                 )}
+                                                {apt.status === 'completed' && apt.patientId && (
+                                                    <button
+                                                        onClick={() => handlePlanFollowUp(apt)}
+                                                        disabled={syncingAppointmentId === apt.id}
+                                                        title={language === 'en' ? 'Plan a follow-up' : 'Planifier un suivi'}
+                                                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M7 21h10a2 2 0 002-2V7H5v12a2 2 0 002 2z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleEdit(apt)}
                                                     title={t('staffAppointments.actions.edit')}
@@ -507,11 +531,15 @@ const Appointments = () => {
             {/* Add Appointment Modal */}
             {showModal && (
                 <AddAppointmentModal
-                    onClose={() => setShowModal(false)}
+                    onClose={() => {
+                        setShowModal(false);
+                        setFollowUpPreset(null);
+                    }}
                     onSuccess={fetchAppointments}
-                    preselectedPatientId={preselectedPatientId}
-                    preselectedDate={preselectedDate}
+                    preselectedPatientId={followUpPreset?.patientId || preselectedPatientId}
+                    preselectedDate={followUpPreset?.date || preselectedDate}
                     preselectedStart={preselectedStart}
+                    initialAppointmentType={followUpPreset?.type || ''}
                 />
             )}
 
@@ -728,10 +756,10 @@ const ConfirmAppointmentModal = ({ appointment, loading, onClose, onConfirm, mod
     );
 };
 
-const AddAppointmentModal = ({ onClose, onSuccess, preselectedPatientId = '', preselectedDate = '', preselectedStart = '' }) => {
+const AddAppointmentModal = ({ onClose, onSuccess, preselectedPatientId = '', preselectedDate = '', preselectedStart = '', initialAppointmentType = '' }) => {
     const [formData, setFormData] = useState({
         patientId: preselectedPatientId,
-        appointmentType: '',
+        appointmentType: initialAppointmentType,
         startTime: preselectedDate && preselectedStart ? buildDateTimeFromDateAndTime(preselectedDate, preselectedStart) : '',
         endTime: '',
         notes: '',
@@ -755,6 +783,12 @@ const AddAppointmentModal = ({ onClose, onSuccess, preselectedPatientId = '', pr
             setFormData((prev) => ({ ...prev, patientId: preselectedPatientId }));
         }
     }, [preselectedPatientId]);
+
+    useEffect(() => {
+        if (initialAppointmentType) {
+            setFormData((prev) => ({ ...prev, appointmentType: initialAppointmentType }));
+        }
+    }, [initialAppointmentType]);
 
     useEffect(() => {
         if (!preselectedDate) return;

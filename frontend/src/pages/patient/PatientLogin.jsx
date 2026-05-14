@@ -5,6 +5,7 @@ import LanguageSwitch from '../../components/ui/LanguageSwitch';
 import { useI18n } from '../../stores/languageStore';
 import { useThemeStore } from '../../stores/themeStore';
 import { getLocalizedAuthError } from '../../utils/authErrors';
+import { PATIENT_REMEMBER_KEY } from '../../utils/authRouting';
 
 const PatientLogin = () => {
     const navigate = useNavigate();
@@ -13,6 +14,7 @@ const PatientLogin = () => {
     const { setThemeScope } = useThemeStore();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(() => localStorage.getItem(PATIENT_REMEMBER_KEY) !== 'false');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -28,6 +30,7 @@ const PatientLogin = () => {
             const { token, user } = res.data.data;
             localStorage.setItem('patient-token', token);
             localStorage.setItem('patient-user', JSON.stringify(user));
+            localStorage.setItem(PATIENT_REMEMBER_KEY, rememberMe ? 'true' : 'false');
             setLanguageScope(user);
             setThemeScope(user);
             navigate(redirectTo);
@@ -99,6 +102,16 @@ const PatientLogin = () => {
                                 </button>
                             </div>
                         </div>
+
+                        <label className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+                            <span>{t('auth.rememberMe')}</span>
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(event) => setRememberMe(event.target.checked)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                            />
+                        </label>
 
                         <button type="submit" disabled={loading} className="w-full btn-primary flex items-center justify-center gap-2">
                             {loading ? (<><div className="spinner" />{t('auth.signingIn')}</>) : t('common.signIn')}

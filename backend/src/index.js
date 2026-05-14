@@ -5,7 +5,10 @@ const helmet = require('helmet');
 require('dotenv').config();
 
 const { errorHandler } = require('./middleware/errorHandler');
+const { authMiddleware } = require('./middleware/auth');
 const db = require('./config/database');
+const { getOwnedPractitionerId } = require('./utils/staffScope');
+const { buildInvoicePdf } = require('./utils/invoicePdf');
 const { ensureUploadDir, uploadsRoot } = require('./utils/uploads');
 
 const authRoutes = require('./routes/auth');
@@ -88,6 +91,62 @@ app.get('/health', (req, res) => {
         version: '1.0.0'
     });
 });
+
+const sendStaffInvoicePdf = async (req, res) => {
+    try {
+        const params = [req.params.id, req.user.clinicId];
+        let practitionerClause = '';
+        const practitionerScopeId = getOwnedPractitionerId(req.user);
+
+        if (practitionerScopeId) {
+            params.push(practitionerScopeId);
+            practitionerClause = `AND i.practitioner_id = $${params.length}`;
+        }
+
+        const invoiceResult = await db.query(
+            `SELECT i.*, p.first_name, p.last_name, p.email AS patient_email, p.phone AS patient_phone,
+                    p.address AS patient_address, p.city AS patient_city,
+                    a.appointment_type, a.start_time, a.end_time, a.consultation_mode,
+                    u.first_name AS dr_first, u.last_name AS dr_last,
+                    c.name AS clinic_name
+             FROM invoices i
+             LEFT JOIN patients p ON i.patient_id = p.id
+             LEFT JOIN appointments a ON a.id = i.appointment_id
+             LEFT JOIN users u ON u.id = i.practitioner_id
+             LEFT JOIN clinics c ON c.id = i.clinic_id
+             WHERE i.id = $1 AND i.clinic_id = $2 ${practitionerClause}`,
+            params
+        );
+
+        if (invoiceResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Invoice not found' });
+        }
+
+        const invoice = invoiceResult.rows[0];
+        const [items, payments] = await Promise.all([
+            db.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at ASC', [invoice.id]),
+            db.query('SELECT * FROM payments WHERE invoice_id = $1 ORDER BY payment_date DESC', [invoice.id])
+        ]);
+        const pdf = buildInvoicePdf({
+            invoice: {
+                ...invoice,
+                patient_name: `${invoice.first_name || ''} ${invoice.last_name || ''}`.trim()
+            },
+            items: items.rows,
+            payments: payments.rows
+        });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoice_number}.pdf"`);
+        res.send(pdf);
+    } catch (error) {
+        console.error('Failed to generate direct invoice PDF:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate invoice PDF' });
+    }
+};
+
+app.get('/api/invoice-pdf/:id', authMiddleware, sendStaffInvoicePdf);
+app.get('/api/invoices/:id/pdf', authMiddleware, sendStaffInvoicePdf);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);

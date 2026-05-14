@@ -9,6 +9,7 @@ import api from '../../services/api';
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [rememberMe, setRememberMe] = useState(() => localStorage.getItem('medicore-auth-remember') !== 'false');
     const [showPassword, setShowPassword] = useState(false);
     const [forgotOpen, setForgotOpen] = useState(false);
     const [forgotEmail, setForgotEmail] = useState('');
@@ -21,7 +22,7 @@ const Login = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const normalizedEmail = email.trim().toLowerCase();
-        await login(normalizedEmail, password);
+        await login(normalizedEmail, password, rememberMe);
     };
 
     const useDemoCredentials = () => {
@@ -137,7 +138,12 @@ const Login = () => {
 
                     <div className="flex items-center justify-between">
                         <label className="flex items-center">
-                            <input type="checkbox" className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500" />
+                            <input
+                                type="checkbox"
+                                checked={rememberMe}
+                                onChange={(event) => setRememberMe(event.target.checked)}
+                                className="w-4 h-4 text-primary-500 border-gray-300 rounded focus:ring-primary-500"
+                            />
                             <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">{t('auth.rememberMe')}</span>
                         </label>
                         <button type="button" onClick={openForgotPassword} className="text-sm text-primary-500 hover:text-primary-600 font-medium">

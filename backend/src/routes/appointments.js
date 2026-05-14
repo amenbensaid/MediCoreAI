@@ -40,6 +40,155 @@ const buildMeetingPayload = (appointment) => {
     };
 };
 
+const toMoney = (value, fallback = 0) => {
+    const amount = Number.parseFloat(value);
+    return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : fallback;
+};
+
+const buildInvoiceNumber = async (client, clinicId) => {
+    const countResult = await client.query(
+        'SELECT COUNT(*) AS total FROM invoices WHERE clinic_id = $1',
+        [clinicId]
+    );
+
+    return `INV-${new Date().getFullYear()}-${String(Number(countResult.rows[0]?.total || 0) + 1).padStart(5, '0')}`;
+};
+
+const resolveAppointmentAmount = async (client, appointment) => {
+    const storedAmount = toMoney(appointment.total_amount, 0);
+    if (storedAmount > 0) return storedAmount;
+
+    const practitionerResult = await client.query(
+        'SELECT consultation_fee FROM users WHERE id = $1',
+        [appointment.practitioner_id]
+    );
+    const practitionerFee = toMoney(practitionerResult.rows[0]?.consultation_fee, 0);
+    if (practitionerFee > 0) return practitionerFee;
+
+    const serviceResult = await client.query(
+        `SELECT default_price
+         FROM services
+         WHERE clinic_id = $1 AND LOWER(name) = LOWER($2) AND is_active = true
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [appointment.clinic_id, appointment.appointment_type || 'Consultation']
+    );
+
+    return toMoney(serviceResult.rows[0]?.default_price, 50);
+};
+
+const getPaidTargetForAppointment = (appointment, totalAmount) => {
+    if (appointment.payment_status === 'paid') return totalAmount;
+    if (appointment.payment_status === 'deposit-paid') {
+        return Math.min(toMoney(appointment.deposit_amount, 0), totalAmount);
+    }
+    return 0;
+};
+
+const ensureAppointmentInvoice = async (client, appointment) => {
+    if (!appointment?.id || !appointment.clinic_id || !appointment.patient_id) {
+        return null;
+    }
+
+    const totalAmount = await resolveAppointmentAmount(client, appointment);
+    const targetPaidAmount = getPaidTargetForAppointment(appointment, totalAmount);
+    const existingResult = await client.query(
+        `SELECT *
+         FROM invoices
+         WHERE appointment_id = $1 AND clinic_id = $2
+         FOR UPDATE`,
+        [appointment.id, appointment.clinic_id]
+    );
+
+    let invoice = existingResult.rows[0] || null;
+    if (!invoice) {
+        const invoiceNumber = await buildInvoiceNumber(client, appointment.clinic_id);
+        const invoiceStatus = targetPaidAmount >= totalAmount
+            ? 'paid'
+            : targetPaidAmount > 0
+                ? 'partial'
+                : 'pending';
+        const invoiceResult = await client.query(
+            `INSERT INTO invoices (
+                invoice_number, clinic_id, patient_id, practitioner_id, appointment_id,
+                status, subtotal, tax_amount, total_amount, paid_amount, due_date, paid_at, notes
+             )
+             VALUES ($1,$2,$3,$4,$5,$6,$7,0,$7,$8,CURRENT_DATE,$9,$10)
+             RETURNING *`,
+            [
+                invoiceNumber,
+                appointment.clinic_id,
+                appointment.patient_id,
+                appointment.practitioner_id,
+                appointment.id,
+                invoiceStatus,
+                totalAmount,
+                targetPaidAmount,
+                targetPaidAmount >= totalAmount ? new Date() : null,
+                `Facture générée depuis le rendez-vous ${appointment.appointment_type || 'Consultation'}`
+            ]
+        );
+        invoice = invoiceResult.rows[0];
+
+        await client.query(
+            `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, tax_rate, total)
+             VALUES ($1,$2,1,$3,0,$3)`,
+            [
+                invoice.id,
+                `Séance ${appointment.appointment_type || 'Consultation'} - ${formatLocalDateTime(appointment.start_time)}`,
+                totalAmount
+            ]
+        );
+    }
+
+    const currentPaidAmount = toMoney(invoice.paid_amount, 0);
+    if (targetPaidAmount > currentPaidAmount) {
+        const paymentAmount = Math.round((targetPaidAmount - currentPaidAmount) * 100) / 100;
+        await client.query(
+            `INSERT INTO payments (invoice_id, clinic_id, amount, payment_method, reference_number, notes)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [
+                invoice.id,
+                appointment.clinic_id,
+                paymentAmount,
+                appointment.consultation_mode === 'online' ? 'online' : 'deposit',
+                `APT-${appointment.id}`,
+                appointment.consultation_mode === 'online'
+                    ? 'Paiement téléconsultation enregistré automatiquement'
+                    : 'Acompte patient enregistré automatiquement'
+            ]
+        );
+
+        const nextPaidAmount = targetPaidAmount;
+        const nextStatus = nextPaidAmount >= totalAmount ? 'paid' : 'partial';
+        const updatedInvoice = await client.query(
+            `UPDATE invoices
+             SET paid_amount = $1,
+                 status = $2,
+                 paid_at = CASE WHEN $2 = 'paid' THEN COALESCE(paid_at, CURRENT_TIMESTAMP) ELSE paid_at END,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3
+             RETURNING *`,
+            [nextPaidAmount, nextStatus, invoice.id]
+        );
+        invoice = updatedInvoice.rows[0];
+    }
+
+    return invoice;
+};
+
+const cancelAppointmentInvoice = async (client, appointmentId, clinicId) => {
+    await client.query(
+        `UPDATE invoices
+         SET status = 'cancelled',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE appointment_id = $1
+           AND clinic_id = $2
+           AND status NOT IN ('paid', 'cancelled')`,
+        [appointmentId, clinicId]
+    );
+};
+
 const buildAppointmentResponse = (appointment) => ({
     id: appointment.id,
     patientId: appointment.patient_id,
@@ -60,7 +209,15 @@ const buildAppointmentResponse = (appointment) => ({
     consultationMode: appointment.consultation_mode,
     meetLink: appointment.meet_link,
     googleEventId: appointment.google_event_id,
-    meeting: buildMeetingPayload(appointment)
+    meeting: buildMeetingPayload(appointment),
+    billing: {
+        invoiceId: appointment.invoice_id || null,
+        invoiceNumber: appointment.invoice_number || null,
+        totalAmount: toMoney(appointment.total_amount, 0),
+        paymentStatus: appointment.payment_status || 'pending',
+        paymentMode: appointment.payment_mode || 'full-onsite',
+        depositAmount: toMoney(appointment.deposit_amount, 0)
+    }
 });
 
 const hasOverlap = async ({ client, practitionerId, startTime, endTime, clinicId, excludeId = null }) => {
@@ -95,12 +252,19 @@ const isModeAllowedBySession = (sessionMode, requestedMode) => (
     sessionMode === 'both' || sessionMode === requestedMode
 );
 
-const validateWithinPractitionerCalendar = async ({ client, practitionerId, startTime, endTime, consultationMode }) => {
+const validateWithinPractitionerCalendar = async ({ client, practitionerId, clinicId, startTime, endTime, consultationMode }) => {
     const practitionerResult = await client.query(
-        `SELECT accepts_online, calendar_preferences
-         FROM users
-         WHERE id = $1 AND role = 'practitioner' AND is_active = true`,
-        [practitionerId]
+        `SELECT u.accepts_online, u.calendar_preferences
+         FROM users u
+         JOIN user_clinics uc ON uc.user_id = u.id
+         WHERE u.id = $1
+           AND uc.clinic_id = $2
+           AND (
+               u.role = 'practitioner'
+               OR (u.role = 'admin' AND uc.role = 'admin')
+           )
+           AND u.is_active = true`,
+        [practitionerId, clinicId]
     );
 
     if (practitionerResult.rows.length === 0) {
@@ -270,10 +434,15 @@ router.get('/calendar', authMiddleware, async (req, res) => {
     try {
         const { start, end } = req.query;
         const clinicId = req.user.clinicId;
-        const params = [clinicId, start, end];
+        const isPlatformPractitionerView = req.user.role === 'admin' && !clinicId && req.query.practitionerId;
+        const params = isPlatformPractitionerView ? [start, end] : [clinicId, start, end];
         let practitionerClause = '';
+        let clinicClause = isPlatformPractitionerView ? '' : 'a.clinic_id = $1 AND';
         const practitionerScopeId = getRequestedPractitionerScope(req);
-        if (practitionerScopeId) {
+        if (isPlatformPractitionerView) {
+            params.push(req.query.practitionerId);
+            practitionerClause = `AND a.practitioner_id = $${params.length}`;
+        } else if (practitionerScopeId) {
             params.push(practitionerScopeId);
             practitionerClause = `AND a.practitioner_id = $${params.length}`;
         }
@@ -292,7 +461,7 @@ router.get('/calendar', authMiddleware, async (req, res) => {
               ) AS shared_documents_count
        FROM appointments a
        LEFT JOIN patients p ON a.patient_id = p.id
-       WHERE a.clinic_id = $1 AND a.start_time >= $2 AND a.start_time <= $3 ${practitionerClause}
+       WHERE ${clinicClause} a.start_time >= $${isPlatformPractitionerView ? 1 : 2} AND a.start_time <= $${isPlatformPractitionerView ? 2 : 3} ${practitionerClause}
        ORDER BY a.start_time ASC`,
             params
         );
@@ -530,6 +699,8 @@ router.post('/waitlist/:id/confirm', authMiddleware, async (req, res) => {
             [appointmentResult.rows[0].id, entry.id]
         );
 
+        const ensuredInvoice = await ensureAppointmentInvoice(client, appointmentResult.rows[0]);
+
         await client.query('COMMIT');
 
         createNotification({
@@ -544,8 +715,14 @@ router.post('/waitlist/:id/confirm', authMiddleware, async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Waitlist appointment confirmed',
-            data: buildAppointmentResponse(appointmentResult.rows[0])
+            message: ensuredInvoice
+                ? `Waitlist appointment confirmed. Invoice ${ensuredInvoice.invoice_number} is ready.`
+                : 'Waitlist appointment confirmed',
+            data: buildAppointmentResponse({
+                ...appointmentResult.rows[0],
+                invoice_id: ensuredInvoice?.id || null,
+                invoice_number: ensuredInvoice?.invoice_number || null
+            })
         });
     } catch (error) {
         await client.query('ROLLBACK').catch(() => {});
@@ -624,7 +801,13 @@ router.post('/', authMiddleware, [
                 `SELECT u.id
                  FROM users u
                  JOIN user_clinics uc ON uc.user_id = u.id
-                 WHERE u.id = $1 AND uc.clinic_id = $2 AND u.role = 'practitioner' AND u.is_active = true`,
+                 WHERE u.id = $1
+                   AND uc.clinic_id = $2
+                   AND (
+                       u.role = 'practitioner'
+                       OR (u.role = 'admin' AND uc.role = 'admin')
+                   )
+                   AND u.is_active = true`,
                 [practitionerId, req.user.clinicId]
             );
             if (practitionerResult.rows.length === 0) {
@@ -659,6 +842,7 @@ router.post('/', authMiddleware, [
             const calendarError = await validateWithinPractitionerCalendar({
                 client,
                 practitionerId: resolvedPractitionerId,
+                clinicId: req.user.clinicId,
                 startTime,
                 endTime,
                 consultationMode: mode
@@ -682,17 +866,25 @@ router.post('/', authMiddleware, [
                 meetingProvider = 'jitsi';
             }
 
+            const practitionerBillingResult = await client.query(
+                'SELECT consultation_fee FROM users WHERE id = $1',
+                [resolvedPractitionerId]
+            );
+            const appointmentFee = toMoney(practitionerBillingResult.rows[0]?.consultation_fee, 50);
+
             const result = await client.query(
                 `INSERT INTO appointments (clinic_id, patient_id, practitioner_id, appointment_type,
             title, description, start_time, end_time, duration_minutes, room, color, notes, consultation_mode,
             reason_category, reason_detail, meet_link, google_event_id,
-            meeting_provider, meeting_status, meeting_created_at, meeting_last_sync_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+            meeting_provider, meeting_status, meeting_created_at, meeting_last_sync_at,
+            payment_mode, payment_status, deposit_amount, total_amount)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
            RETURNING *`,
                 [req.user.clinicId, patientId, resolvedPractitionerId, appointmentType,
                     title, description, startTime, endTime, durationMinutes || 30, room, color, notes, mode,
                     reasonCategory || null, reasonDetail || null, meetLink, googleEventId,
-                    meetingProvider, meetingStatus, meetingCreatedAt, meetingLastSyncAt]
+                    meetingProvider, meetingStatus, meetingCreatedAt, meetingLastSyncAt,
+                    mode === 'online' ? 'full-advance' : 'full-onsite', 'pending', 0, appointmentFee]
             );
 
             await client.query(
@@ -703,11 +895,19 @@ router.post('/', authMiddleware, [
                 [resolvedPractitionerId, patientId, req.user.clinicId]
             );
 
+            const ensuredInvoice = await ensureAppointmentInvoice(client, result.rows[0]);
+
             await client.query('COMMIT');
             res.status(201).json({
                 success: true,
-                message: meetingWarning || 'Appointment created successfully',
-                data: buildAppointmentResponse(result.rows[0])
+                message: ensuredInvoice
+                    ? `Appointment created successfully. Invoice ${ensuredInvoice.invoice_number} is ready.`
+                    : meetingWarning || 'Appointment created successfully',
+                data: buildAppointmentResponse({
+                    ...result.rows[0],
+                    invoice_id: ensuredInvoice?.id || null,
+                    invoice_number: ensuredInvoice?.invoice_number || null
+                })
             });
         } catch (error) {
             await client.query('ROLLBACK');
@@ -737,6 +937,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
                         a.description, a.notes, a.consultation_mode, a.meet_link, a.google_event_id, a.status,
                         a.meeting_provider, a.meeting_status, a.meeting_created_at, a.meeting_last_sync_at,
                         a.reason_category, a.reason_detail, a.preparation_notes, a.medical_record_id,
+                        a.clinic_id, a.payment_mode, a.payment_status, a.deposit_amount, a.total_amount,
                         p.email, p.first_name, p.last_name
                  FROM appointments a
                  LEFT JOIN patients p ON a.patient_id = p.id
@@ -779,6 +980,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
             const calendarError = await validateWithinPractitionerCalendar({
                 client,
                 practitionerId: current.practitioner_id,
+                clinicId: req.user.clinicId,
                 startTime: nextStartTime,
                 endTime: nextEndTime,
                 consultationMode: nextConsultationMode
@@ -926,27 +1128,51 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 ]
             );
 
-            await client.query('COMMIT');
             const savedAppointment = result.rows[0];
+            let ensuredInvoice = null;
+            if (nextStatus === 'completed' || (nextStatus === 'confirmed' && nextConsultationMode === 'online')) {
+                ensuredInvoice = await ensureAppointmentInvoice(client, savedAppointment);
+            } else if (nextStatus === 'cancelled') {
+                await cancelAppointmentInvoice(client, savedAppointment.id, req.user.clinicId);
+            }
+
+            await client.query('COMMIT');
             const requestedDocumentsList = Array.isArray(requestedDocuments) ? requestedDocuments : [];
             if (nextStatus === 'confirmed' || requestedDocumentsList.length > 0) {
+                const isOnlineConfirmed = nextStatus === 'confirmed' && nextConsultationMode === 'online';
                 createNotification({
                     clinicId: req.user.clinicId,
                     patientId: savedAppointment.patient_id,
                     type: 'appointment',
-                    title: nextStatus === 'confirmed' ? 'Rendez-vous confirmé' : 'Documents demandés',
+                    title: nextStatus === 'confirmed'
+                        ? (isOnlineConfirmed ? 'Téléconsultation confirmée' : 'Rendez-vous confirmé')
+                        : 'Documents demandés',
                     message: requestedDocumentsList.length > 0
                         ? `Votre médecin demande: ${requestedDocumentsList.join(', ')}`
-                        : 'Votre rendez-vous a été confirmé par le médecin.',
-                    url: '/patient/portal',
-                    metadata: { appointmentId: savedAppointment.id }
+                        : isOnlineConfirmed && nextMeetLink
+                            ? 'Votre rendez-vous en ligne est confirmé. Le lien Jitsi Meet est prêt.'
+                            : isOnlineConfirmed
+                                ? 'Votre rendez-vous en ligne est confirmé. Le lien Jitsi Meet sera disponible bientôt.'
+                                : 'Votre rendez-vous a été confirmé par le médecin.',
+                    url: `/patient/appointment/${savedAppointment.id}`,
+                    metadata: {
+                        appointmentId: savedAppointment.id,
+                        meetLink: isOnlineConfirmed ? nextMeetLink : null,
+                        event: isOnlineConfirmed ? 'online_appointment_confirmed' : 'appointment_confirmed'
+                    }
                 }).catch(() => {});
             }
 
             res.json({
                 success: true,
-                message: meetingWarning || 'Appointment updated successfully',
-                data: buildAppointmentResponse(savedAppointment)
+                message: ensuredInvoice
+                    ? `Appointment updated successfully. Invoice ${ensuredInvoice.invoice_number} is ready.`
+                    : meetingWarning || 'Appointment updated successfully',
+                data: buildAppointmentResponse({
+                    ...savedAppointment,
+                    invoice_id: ensuredInvoice?.id || savedAppointment.invoice_id || null,
+                    invoice_number: ensuredInvoice?.invoice_number || savedAppointment.invoice_number || null
+                })
             });
         } catch (error) {
             await client.query('ROLLBACK');
@@ -985,6 +1211,21 @@ router.post('/:id/sync-meeting', authMiddleware, async (req, res) => {
         const appointment = appointmentResult.rows[0];
         try {
             const synced = await syncGoogleMeetForAppointment({ appointment });
+            if (synced.meet_link) {
+                createNotification({
+                    clinicId: req.user.clinicId,
+                    patientId: synced.patient_id,
+                    type: 'appointment',
+                    title: 'Lien Jitsi Meet prêt',
+                    message: 'Votre lien de téléconsultation est disponible. Vous pouvez rejoindre la session depuis votre rendez-vous.',
+                    url: `/patient/appointment/${synced.id}`,
+                    metadata: {
+                        appointmentId: synced.id,
+                        meetLink: synced.meet_link,
+                        event: 'jitsi_link_ready'
+                    }
+                }).catch(() => {});
+            }
             return res.json({
                 success: true,
                 message: synced.meet_link ? 'Jitsi Meet link synchronized' : 'Meeting synchronization is pending',
@@ -1075,6 +1316,16 @@ router.delete('/:id', authMiddleware, async (req, res) => {
                 });
             }
         }
+
+        await db.query(
+            `UPDATE invoices
+             SET status = 'cancelled',
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE appointment_id = $1
+               AND clinic_id = $2
+               AND status NOT IN ('paid', 'cancelled')`,
+            [appointment.id, req.user.clinicId]
+        );
 
         const result = await db.query(
             'DELETE FROM appointments WHERE id = $1 AND clinic_id = $2 RETURNING id',

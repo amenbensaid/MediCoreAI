@@ -380,6 +380,7 @@ router.get('/', authMiddleware, async (req, res) => {
                     newPatientsMonth: parseInt(patients.rows[0].new_this_month),
                     pendingInvoicesCount: parseInt(pendingInvoices.rows[0].count),
                     pendingInvoicesAmount: parseFloat(pendingInvoices.rows[0].amount),
+                    paymentsTodayCount: parseInt(paymentsTodayCount.rows[0].count, 10),
                     appointmentsTrend: formatPercentChange(appointmentsToday.rows[0].total, appointmentsYesterday.rows[0].total),
                     revenueTrend: formatPercentChange(revenueToday.rows[0].total, revenueYesterday.rows[0].total),
                     patientsTrend: formatPercentChange(patients.rows[0].new_this_month, patientsPreviousMonth.rows[0].total),

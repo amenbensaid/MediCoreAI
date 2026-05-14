@@ -11,6 +11,7 @@ const getRoleTranslationKey = (user) => {
     if (user?.role === 'admin') return 'admin';
     if (user?.clinicRole === 'admin') return 'clinicAdmin';
     if (user?.role === 'practitioner') return 'practitioner';
+    if (user?.role === 'secretary') return 'secretary';
     if (user?.role === 'receptionist') return 'receptionist';
     return 'user';
 };
@@ -55,6 +56,11 @@ const Dashboard = () => {
     const roleLabel = t(`dashboard.roles.${getRoleTranslationKey(user)}`);
     const isClinicAdmin = user?.role === 'admin' || user?.clinicRole === 'admin';
     const isPractitioner = user?.role === 'practitioner';
+    const isSecretary = user?.role === 'secretary' || user?.role === 'receptionist';
+    const isEnglish = language === 'en';
+    const awaitingCount = upcomingAppointments.filter((appointment) => (
+        appointment.status === 'awaiting_approval' || appointment.status === 'scheduled'
+    )).length;
     const greeting = new Date().getHours() >= 18 || new Date().getHours() < 5
         ? t('dashboard.goodEvening')
         : t('dashboard.goodMorning');
@@ -136,7 +142,11 @@ const Dashboard = () => {
                     <h1 className="mt-2 text-3xl font-extrabold text-slate-950 dark:text-white">
                         {greeting}, {getDisplayName(user)}
                     </h1>
-                    <p className="mt-1 text-slate-600 dark:text-gray-400">{t('dashboard.overview')}</p>
+                    <p className="mt-1 text-slate-600 dark:text-gray-400">
+                        {isSecretary
+                            ? (isEnglish ? 'Front desk priorities, patient requests, schedule and billing follow-up.' : 'Priorités accueil, demandes patients, planning et suivi facturation.')
+                            : t('dashboard.overview')}
+                    </p>
                 </div>
                 <div className="flex gap-3">
                     {isClinicAdmin && (
@@ -167,15 +177,15 @@ const Dashboard = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title={t('dashboard.stats.todaysAppointments')}
+                    title={isSecretary ? (isEnglish ? 'Today schedule' : 'Planning du jour') : t('dashboard.stats.todaysAppointments')}
                     value={stats?.appointmentsToday || 0}
-                    subtitle={t('dashboard.stats.completed', { count: stats?.appointmentsCompleted || 0 })}
+                    subtitle={isSecretary ? `${awaitingCount} ${isEnglish ? 'to handle' : 'à traiter'}` : t('dashboard.stats.completed', { count: stats?.appointmentsCompleted || 0 })}
                     icon={<CalendarIcon />}
                     color="primary"
                     trend={stats?.appointmentsTrend}
                 />
                 <StatCard
-                    title={t('dashboard.stats.todaysRevenue')}
+                    title={isSecretary ? (isEnglish ? 'Today collections' : 'Encaissements jour') : t('dashboard.stats.todaysRevenue')}
                     value={`${(stats?.revenueToday || 0).toLocaleString(locale)} €`}
                     subtitle={t('dashboard.stats.vsYesterday')}
                     icon={<CurrencyIcon />}
@@ -183,7 +193,7 @@ const Dashboard = () => {
                     trend={stats?.revenueTrend}
                 />
                 <StatCard
-                    title={t('dashboard.stats.totalPatients')}
+                    title={isSecretary ? (isEnglish ? 'Patient files' : 'Dossiers patients') : t('dashboard.stats.totalPatients')}
                     value={stats?.totalPatients || 0}
                     subtitle={t('dashboard.stats.thisMonth', { count: stats?.newPatientsMonth || 0 })}
                     icon={<UsersIcon />}
@@ -191,7 +201,7 @@ const Dashboard = () => {
                     trend={stats?.patientsTrend}
                 />
                 <StatCard
-                    title={t('dashboard.stats.outstanding')}
+                    title={isSecretary ? (isEnglish ? 'To follow up' : 'À relancer') : t('dashboard.stats.outstanding')}
                     value={`${(stats?.pendingInvoicesAmount || 0).toLocaleString(locale)} €`}
                     subtitle={t('dashboard.stats.invoices', { count: stats?.pendingInvoicesCount || 0 })}
                     icon={<InvoiceIcon />}
@@ -199,6 +209,12 @@ const Dashboard = () => {
                     trend={stats?.pendingInvoicesTrend}
                 />
             </div>
+
+            {isSecretary ? (
+                <SecretaryDesk stats={stats} locale={locale} language={language} awaitingCount={awaitingCount} />
+            ) : (
+                <RevenueSummary stats={stats} locale={locale} language={language} />
+            )}
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -295,7 +311,7 @@ const Dashboard = () => {
                                         </p>
                                     )}
                                 </div>
-                                <Link to={dateKey ? `/calendar/day/${dateKey}` : '/calendar'} className="btn-secondary text-center">
+                                <Link to={dateKey ? `/calendar/day/${dateKey}` : '/waitlist'} className="btn-secondary text-center">
                                     {t('dashboard.waitlist.manage')}
                                 </Link>
                             </div>
@@ -372,6 +388,149 @@ const Dashboard = () => {
                         )}
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const RevenueSummary = ({ stats, locale, language }) => {
+    const isEnglish = language === 'en';
+    const money = (value) => `${Number(value || 0).toLocaleString(locale)} €`;
+    const pendingAmount = Number(stats?.pendingInvoicesAmount || 0);
+    const pendingCount = Number(stats?.pendingInvoicesCount || 0);
+
+    return (
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-dark-700 dark:bg-dark-800">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-300">
+                        <CurrencyIcon />
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold uppercase tracking-[0.18em] text-emerald-600 dark:text-emerald-300">
+                            {isEnglish ? 'Revenue control' : 'Contrôle revenus'}
+                        </p>
+                        <h2 className="mt-1 text-xl font-extrabold text-slate-950 dark:text-white">
+                            {isEnglish ? 'Exact collected revenue' : 'Revenu encaissé exact'}
+                        </h2>
+                        <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+                            {isEnglish
+                                ? 'Dashboard revenue is calculated from recorded payments. Open invoices remain in outstanding balance until paid.'
+                                : 'Le dashboard calcule le revenu depuis les paiements enregistrés. Les factures ouvertes restent dans le solde à encaisser jusqu’au paiement.'}
+                        </p>
+                    </div>
+                </div>
+                <Link to="/invoices" className="btn-secondary self-start lg:self-center">
+                    {isEnglish ? 'Open invoices' : 'Voir factures'}
+                </Link>
+            </div>
+
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl bg-slate-50 p-4 dark:bg-dark-900/40">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                        {isEnglish ? 'Today collected' : 'Encaissé jour'}
+                    </p>
+                    <p className="mt-2 text-2xl font-extrabold text-slate-950 dark:text-white">{money(stats?.revenueToday)}</p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-600 dark:text-emerald-300">
+                        {stats?.paymentsTodayCount || 0} {isEnglish ? 'payment(s)' : 'paiement(s)'}
+                    </p>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4 dark:bg-dark-900/40">
+                    <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:text-slate-400">
+                        {isEnglish ? 'Month collected' : 'Encaissé mois'}
+                    </p>
+                    <p className="mt-2 text-2xl font-extrabold text-slate-950 dark:text-white">{money(stats?.revenueMonth)}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-500 dark:text-slate-400">
+                        {isEnglish ? 'Real paid sessions' : 'Séances réellement payées'}
+                    </p>
+                </div>
+                <div className={`rounded-2xl p-4 ${pendingAmount > 0 ? 'bg-orange-50 dark:bg-orange-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20'}`}>
+                    <p className={`text-xs font-bold uppercase tracking-[0.12em] ${pendingAmount > 0 ? 'text-orange-600 dark:text-orange-300' : 'text-emerald-600 dark:text-emerald-300'}`}>
+                        {isEnglish ? 'Outstanding' : 'À encaisser'}
+                    </p>
+                    <p className="mt-2 text-2xl font-extrabold text-slate-950 dark:text-white">{money(pendingAmount)}</p>
+                    <p className={`mt-1 text-sm font-semibold ${pendingAmount > 0 ? 'text-orange-700 dark:text-orange-200' : 'text-emerald-700 dark:text-emerald-200'}`}>
+                        {pendingCount} {isEnglish ? 'open invoice(s)' : 'facture(s) ouverte(s)'}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const SecretaryDesk = ({ stats, locale, language, awaitingCount }) => {
+    const isEnglish = language === 'en';
+    const money = (value) => `${Number(value || 0).toLocaleString(locale)} €`;
+    const priorities = [
+        {
+            title: isEnglish ? 'Requests to approve' : 'Demandes à valider',
+            subtitle: isEnglish ? 'Confirm or offer a slot from the agenda.' : 'Confirmer ou proposer un créneau depuis le planning.',
+            value: awaitingCount,
+            to: '/waitlist',
+            color: 'text-primary-600 bg-primary-50 dark:bg-primary-900/20 dark:text-primary-300',
+            icon: <CalendarIcon />
+        },
+        {
+            title: isEnglish ? 'Patient records' : 'Dossiers patients',
+            subtitle: isEnglish ? 'Create, update and verify patient contact details.' : 'Créer, mettre à jour et vérifier les coordonnées patients.',
+            value: stats?.totalPatients || 0,
+            to: '/patients',
+            color: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20 dark:text-cyan-300',
+            icon: <UsersIcon />
+        },
+        {
+            title: isEnglish ? 'Open invoices' : 'Factures ouvertes',
+            subtitle: `${money(stats?.pendingInvoicesAmount)} · ${stats?.pendingInvoicesCount || 0} ${isEnglish ? 'invoice(s)' : 'facture(s)'}`,
+            value: stats?.pendingInvoicesCount || 0,
+            to: '/invoices',
+            color: 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-300',
+            icon: <InvoiceIcon />
+        }
+    ];
+
+    return (
+        <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-lg dark:border-dark-700 dark:bg-dark-800">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50 text-teal-700 dark:bg-teal-900/20 dark:text-teal-300">
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5h6m-6 4h6m-8 4h10M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p className="text-sm font-bold uppercase tracking-[0.18em] text-teal-700 dark:text-teal-300">
+                            {isEnglish ? 'Front desk' : 'Accueil clinique'}
+                        </p>
+                        <h2 className="mt-1 text-xl font-extrabold text-slate-950 dark:text-white">
+                            {isEnglish ? 'Secretary dashboard' : 'Dashboard secrétaire'}
+                        </h2>
+                        <p className="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+                            {isEnglish
+                                ? 'A focused view for requests, patient files, daily agenda and billing follow-up.'
+                                : 'Une vue claire pour les demandes, dossiers patients, agenda du jour et suivi des paiements.'}
+                        </p>
+                    </div>
+                </div>
+                <Link to="/calendar" className="btn-secondary self-start lg:self-center">
+                    {isEnglish ? 'Open calendar' : 'Ouvrir calendrier'}
+                </Link>
+            </div>
+
+            <div className="mt-5 grid gap-3 lg:grid-cols-3">
+                {priorities.map((item) => (
+                    <Link key={item.title} to={item.to} className="group rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-white hover:shadow-md dark:border-dark-700 dark:bg-dark-900/40 dark:hover:bg-dark-800">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${item.color}`}>
+                                {item.icon}
+                            </div>
+                            <span className="rounded-full bg-white px-3 py-1 text-sm font-extrabold text-slate-900 ring-1 ring-slate-200 dark:bg-dark-800 dark:text-white dark:ring-dark-700">
+                                {item.value}
+                            </span>
+                        </div>
+                        <h3 className="mt-4 font-extrabold text-slate-950 dark:text-white">{item.title}</h3>
+                        <p className="mt-1 text-sm font-medium leading-6 text-slate-500 dark:text-slate-400">{item.subtitle}</p>
+                    </Link>
+                ))}
             </div>
         </div>
     );

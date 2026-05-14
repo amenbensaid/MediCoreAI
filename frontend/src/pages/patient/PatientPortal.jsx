@@ -450,6 +450,7 @@ const PatientPortal = () => {
                                             category: 'medical'
                                         })}
                                         getStatusBadge={getStatusBadge}
+                                        onViewDetails={(appointmentId) => navigate(`/patient/appointments/${appointmentId}`)}
                                         language={language}
                                         t={t} />
                                 ))}
@@ -544,7 +545,16 @@ const PatientPortal = () => {
                         ) : (
                             <div className="space-y-3">
                                 {past.map(apt => (
-                                    <AppointmentCard key={apt.id} apt={apt} isPast onAddNote={(id) => setShowNoteModal(id)} getStatusBadge={getStatusBadge} language={language} t={t} />
+                                    <AppointmentCard
+                                        key={apt.id}
+                                        apt={apt}
+                                        isPast
+                                        onAddNote={(id) => setShowNoteModal(id)}
+                                        onViewDetails={(appointmentId) => navigate(`/patient/appointments/${appointmentId}`)}
+                                        getStatusBadge={getStatusBadge}
+                                        language={language}
+                                        t={t}
+                                    />
                                 ))}
                             </div>
                         )}
@@ -879,7 +889,7 @@ const WaitlistCard = ({ entry, onAccept, onDecline, language = 'fr', t = (key) =
     );
 };
 
-const AppointmentCard = ({ apt, onCancel, onAddNote, onUploadRequestedDoc, getStatusBadge, isPast, language = 'fr', t = (key) => key }) => (
+const AppointmentCard = ({ apt, onCancel, onAddNote, onUploadRequestedDoc, onViewDetails, getStatusBadge, isPast, language = 'fr', t = (key) => key }) => (
     <div className={`bg-white dark:bg-slate-800 rounded-2xl border border-gray-100 dark:border-slate-700 p-6 shadow-sm hover:shadow-lg transition-all duration-300 ${isPast ? 'opacity-70' : ''} group`}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center gap-6">
@@ -1011,7 +1021,13 @@ const AppointmentCard = ({ apt, onCancel, onAddNote, onUploadRequestedDoc, getSt
                     )}
                 </div>
             </div>
-            <div className="flex items-center gap-2 lg:ml-4">
+            <div className="flex flex-wrap items-center gap-2 lg:ml-4">
+                <button
+                    onClick={() => onViewDetails?.(apt.id)}
+                    className="rounded-xl bg-primary-50 px-4 py-2.5 text-sm font-bold text-primary-700 transition-all hover:bg-primary-100 dark:bg-primary-900/20 dark:text-primary-200 dark:hover:bg-primary-900/30"
+                >
+                    {language === 'en' ? 'Details' : 'Détails'}
+                </button>
                 <button 
                     onClick={() => onAddNote(apt.id)} 
                     className="p-2.5 text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-xl transition-all group-hover:opacity-100 opacity-0 lg:opacity-100" 

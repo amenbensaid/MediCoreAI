@@ -4,22 +4,53 @@ import { enUS, fr } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useI18n } from '../stores/languageStore';
+import Avatar from '../components/ui/Avatar';
 
-const Calendar = () => {
+const Calendar = ({ adminPicker = false }) => {
     const { language, t } = useI18n();
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [appointments, setAppointments] = useState([]);
+    const [practitioners, setPractitioners] = useState([]);
+    const [selectedPractitioner, setSelectedPractitioner] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [practitionersLoading, setPractitionersLoading] = useState(false);
     const [view, setView] = useState('month');
     const [calendarSettings, setCalendarSettings] = useState(null);
     const navigate = useNavigate();
+    const readOnlyPractitionerCalendar = adminPicker && Boolean(selectedPractitioner);
+    const shouldPickPractitioner = adminPicker && !selectedPractitioner;
 
     useEffect(() => {
+        if (shouldPickPractitioner) {
+            setLoading(false);
+            return;
+        }
         fetchAppointments();
-    }, [currentMonth]);
+    }, [currentMonth, selectedPractitioner?.id, shouldPickPractitioner]);
 
     useEffect(() => {
+        if (!adminPicker) return;
+
+        const fetchPractitioners = async () => {
+            try {
+                setPractitionersLoading(true);
+                const response = await api.get('/users/practitioners/admin', { params: { status: 'active' } });
+                setPractitioners(response.data.data || []);
+            } catch (error) {
+                console.error('Error fetching practitioners:', error);
+                setPractitioners([]);
+            } finally {
+                setPractitionersLoading(false);
+            }
+        };
+
+        fetchPractitioners();
+    }, [adminPicker]);
+
+    useEffect(() => {
+        if (adminPicker) return;
+
         const fetchCalendarSettings = async () => {
             try {
                 const response = await api.get('/users/me/consultation-settings');
@@ -30,13 +61,18 @@ const Calendar = () => {
         };
 
         fetchCalendarSettings();
-    }, []);
+    }, [adminPicker]);
 
     const fetchAppointments = async () => {
         try {
+            setLoading(true);
             const start = startOfMonth(currentMonth).toISOString();
             const end = endOfMonth(currentMonth).toISOString();
-            const response = await api.get('/appointments/calendar', { params: { start, end } });
+            const params = { start, end };
+            if (selectedPractitioner?.id) {
+                params.practitionerId = selectedPractitioner.id;
+            }
+            const response = await api.get('/appointments/calendar', { params });
             setAppointments(response.data.data);
         } catch (error) {
             console.error('Error fetching appointments:', error);
@@ -103,7 +139,12 @@ const Calendar = () => {
             </div>
             <div className="flex gap-2">
                 <button onClick={() => setCurrentMonth(new Date())} className="btn-secondary text-sm">{t('staffCalendar.today')}</button>
-                <button onClick={() => navigate('/settings')} className="btn-secondary text-sm">{t('staffCalendar.settings')}</button>
+                {readOnlyPractitionerCalendar && (
+                    <button onClick={() => setSelectedPractitioner(null)} className="btn-secondary text-sm">{t('common.back') || 'Retour'}</button>
+                )}
+                {!readOnlyPractitionerCalendar && (
+                    <button onClick={() => navigate('/settings')} className="btn-secondary text-sm">{t('staffCalendar.settings')}</button>
+                )}
                 <div className="flex bg-gray-100 dark:bg-dark-700 rounded-xl p-1">
                     {['month', 'week'].map(v => (
                         <button key={v} onClick={() => setView(v)}
@@ -156,12 +197,14 @@ const Calendar = () => {
                         key={day.toString()}
                         onClick={() => {
                             setSelectedDate(cloneDay);
-                            navigate(`/calendar/day/${format(cloneDay, 'yyyy-MM-dd')}`);
+                            if (!readOnlyPractitionerCalendar) {
+                                navigate(`/calendar/day/${format(cloneDay, 'yyyy-MM-dd')}`);
+                            }
                         }}
-                        className={`min-h-[120px] p-2 border-b border-r border-gray-100 dark:border-dark-700 cursor-pointer transition-colors
+                        className={`min-h-[120px] p-2 border-b border-r border-gray-100 dark:border-dark-700 transition-colors
               ${!isSameMonth(day, monthStart) ? 'bg-gray-50 dark:bg-dark-900/50' : 'bg-white dark:bg-dark-800'}
               ${isSameDay(day, selectedDate) ? 'ring-2 ring-primary-500 ring-inset' : ''}
-              hover:bg-gray-50 dark:hover:bg-dark-700/50`}
+              ${readOnlyPractitionerCalendar ? 'cursor-default' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-700/50'}`}
                     >
                         <div className={`text-sm font-medium mb-1 ${isSameDay(day, new Date())
                                 ? 'w-7 h-7 bg-primary-500 text-white rounded-full flex items-center justify-center'
@@ -198,8 +241,100 @@ const Calendar = () => {
         isSameDay(new Date(apt.start), selectedDate)
     );
 
+    if (shouldPickPractitioner) {
+        return (
+            <div className="animate-fade-in space-y-6">
+                <section className="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm dark:border-dark-700 dark:bg-dark-800">
+                    <div className="grid gap-5 p-6 lg:grid-cols-[1fr_auto] lg:items-center">
+                        <div>
+                            <p className="text-sm font-extrabold uppercase tracking-[0.24em] text-primary-500">{t('staffCalendar.practitionerPickerEyebrow') || 'Planning cabinet'}</p>
+                            <h1 className="mt-2 text-3xl font-extrabold text-slate-950 dark:text-white">{t('staffCalendar.practitionerPickerTitle') || 'Choisir un praticien'}</h1>
+                            <p className="mt-2 max-w-3xl text-sm text-slate-500 dark:text-slate-400">
+                                {t('staffCalendar.practitionerPickerSubtitle') || 'Sélectionnez un praticien pour consulter son calendrier en lecture seule.'}
+                            </p>
+                        </div>
+                        <div className="rounded-2xl bg-primary-50 px-4 py-3 text-sm font-extrabold text-primary-700 dark:bg-primary-900/20 dark:text-primary-200">
+                            {t('staffCalendar.practitionersCount', { count: practitioners.length }) || `${practitioners.length} praticien(s)`}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-800">
+                    {practitionersLoading ? (
+                        <div className="flex h-64 items-center justify-center"><div className="spinner" /></div>
+                    ) : practitioners.length === 0 ? (
+                        <div className="p-12 text-center text-sm text-slate-500 dark:text-slate-400">
+                            {t('staffCalendar.noPractitioner') || 'Aucun médecin ou administrateur clinique trouvé.'}
+                        </div>
+                    ) : (
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            {practitioners.map((practitioner) => (
+                                <button
+                                    key={practitioner.id}
+                                    type="button"
+                                    onClick={() => setSelectedPractitioner(practitioner)}
+                                    className="group rounded-3xl border border-slate-100 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-lg dark:border-dark-700 dark:bg-dark-800"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <Avatar src={practitioner.avatarUrl} firstName={practitioner.firstName} lastName={practitioner.lastName} size="lg" radius="2xl" />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-lg font-extrabold text-slate-950 dark:text-white">{practitioner.fullName}</p>
+                                            <div className="mt-1 flex flex-wrap items-center gap-2">
+                                                <p className="truncate text-sm font-bold text-primary-600 dark:text-primary-300">{practitioner.specialty || '-'}</p>
+                                                {practitioner.isClinicAdmin && (
+                                                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-extrabold text-violet-700 dark:bg-violet-900/20 dark:text-violet-200">
+                                                        {t('staffDoctors.roleClinicAdmin') || 'Admin clinique'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {practitioner.clinic?.name && (
+                                                <p className="mt-1 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
+                                                    {practitioner.clinic.name}{practitioner.clinic.city ? ` · ${practitioner.clinic.city}` : ''}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="mt-5 grid grid-cols-3 gap-2">
+                                        <CalendarMetric label={t('staffDoctors.stats.appointments') || 'RDV'} value={practitioner.metrics?.appointments || 0} />
+                                        <CalendarMetric label={t('staffDoctors.stats.upcoming') || 'À venir'} value={practitioner.metrics?.upcomingAppointments || 0} />
+                                        <CalendarMetric label={t('staffDoctors.stats.patients') || 'Patients'} value={practitioner.metrics?.patients || 0} />
+                                    </div>
+                                    <div className="mt-4 rounded-2xl bg-primary-50 px-4 py-3 text-center text-sm font-extrabold text-primary-700 transition group-hover:bg-primary-600 group-hover:text-white dark:bg-primary-900/20 dark:text-primary-200">
+                                        {t('staffCalendar.viewCalendar') || 'Voir calendrier'}
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            </div>
+        );
+    }
+
     return (
         <div className="animate-fade-in">
+            {readOnlyPractitionerCalendar && (
+                <section className="mb-6 rounded-3xl border border-primary-100 bg-white p-5 shadow-sm dark:border-primary-900/30 dark:bg-dark-800">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="flex items-center gap-4">
+                            <Avatar src={selectedPractitioner.avatarUrl} firstName={selectedPractitioner.firstName} lastName={selectedPractitioner.lastName} size="lg" radius="2xl" />
+                            <div>
+                                <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-primary-600 dark:text-primary-300">{t('staffCalendar.readOnly') || 'Lecture seule'}</p>
+                                <h1 className="mt-1 text-2xl font-extrabold text-slate-950 dark:text-white">{selectedPractitioner.fullName}</h1>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{selectedPractitioner.specialty || '-'}</p>
+                                    {selectedPractitioner.isClinicAdmin && (
+                                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[11px] font-extrabold text-violet-700 dark:bg-violet-900/20 dark:text-violet-200">
+                                            {t('staffDoctors.roleClinicAdmin') || 'Admin clinique'}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <button onClick={() => setSelectedPractitioner(null)} className="btn-secondary">{t('common.back') || 'Retour'}</button>
+                    </div>
+                </section>
+            )}
             <div className="flex flex-col lg:flex-row gap-6">
                 {/* Calendar */}
                 <div className="flex-1 bg-white dark:bg-dark-800 rounded-2xl shadow-lg border border-gray-100 dark:border-dark-700 p-6">
@@ -298,12 +433,14 @@ const Calendar = () => {
                             <p className="text-gray-500 dark:text-gray-400">{t('staffCalendar.selectedDayEmpty')}</p>
                         </div>
                     )}
-                    <button onClick={() => navigate(`/appointments?date=${format(selectedDate, 'yyyy-MM-dd')}&new=1`)} className="w-full btn-primary mt-4">
-                        {t('staffCalendar.addAppointment')}
-                    </button>
+                    {!readOnlyPractitionerCalendar && (
+                        <button onClick={() => navigate(`/appointments?date=${format(selectedDate, 'yyyy-MM-dd')}&new=1`)} className="w-full btn-primary mt-4">
+                            {t('staffCalendar.addAppointment')}
+                        </button>
+                    )}
                 </div>
 
-                {calendarSettings && (
+                {calendarSettings && !readOnlyPractitionerCalendar && (
                     <div className="rounded-2xl border border-primary-100 bg-white p-5 shadow-lg dark:border-primary-900/30 dark:bg-dark-800">
                         <div className="flex items-center justify-between">
                             <h3 className="font-semibold text-gray-900 dark:text-white">{t('staffCalendar.patientRules')}</h3>
@@ -340,5 +477,12 @@ const Calendar = () => {
         </div>
     );
 };
+
+const CalendarMetric = ({ label, value }) => (
+    <div className="rounded-2xl bg-slate-50 p-3 dark:bg-dark-700">
+        <p className="truncate text-[11px] font-bold text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="mt-1 text-lg font-extrabold text-slate-950 dark:text-white">{value}</p>
+    </div>
+);
 
 export default Calendar;

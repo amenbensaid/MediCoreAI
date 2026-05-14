@@ -4,15 +4,16 @@ const db = require('../config/database');
 const authMiddleware = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
+        const queryToken = typeof req.query?.token === 'string' ? req.query.token : null;
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if ((!authHeader || !authHeader.startsWith('Bearer ')) && !queryToken) {
             return res.status(401).json({
                 success: false,
                 message: 'Access denied. No token provided.'
             });
         }
 
-        const token = authHeader.split(' ')[1];
+        const token = queryToken || authHeader.split(' ')[1];
 
         try {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);

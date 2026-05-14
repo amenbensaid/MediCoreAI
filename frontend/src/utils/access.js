@@ -14,6 +14,19 @@ export const canAccessModule = (user, moduleKey) => {
         return true;
     }
 
+    if (Object.prototype.hasOwnProperty.call(user.accessPermissions || {}, moduleKey)) {
+        return Boolean(user.accessPermissions[moduleKey]);
+    }
+
+    if (moduleKey === 'waitlist') {
+        return Boolean(
+            user.role !== 'secretary' ||
+            user.accessPermissions?.waitlist ||
+            user.accessPermissions?.appointments ||
+            user.accessPermissions?.calendar
+        );
+    }
+
     if (user.role === 'secretary') {
         return Boolean(user.accessPermissions?.[moduleKey]);
     }

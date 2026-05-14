@@ -115,6 +115,7 @@ const secretaryPermissionItems = [
     { key: 'dashboard', label: 'Tableau de bord', description: 'Voir les indicateurs du cabinet' },
     { key: 'patients', label: 'Patients', description: 'Consulter et gérer les fiches patients' },
     { key: 'appointments', label: 'Rendez-vous', description: 'Créer, confirmer et organiser les rendez-vous' },
+    { key: 'waitlist', label: 'File d’attente', description: 'Traiter les demandes patient en attente' },
     { key: 'calendar', label: 'Calendrier', description: 'Voir le planning du cabinet' },
     { key: 'teleconsultations', label: 'Téléconsultations', description: 'Voir les séances en ligne' },
     { key: 'reviews', label: 'Avis', description: 'Consulter les avis patients' },
@@ -125,7 +126,7 @@ const secretaryPermissionItems = [
 
 const defaultSecretaryPermissions = secretaryPermissionItems.reduce((acc, item) => ({
     ...acc,
-    [item.key]: ['dashboard', 'patients', 'appointments', 'calendar'].includes(item.key)
+    [item.key]: ['dashboard', 'patients', 'appointments', 'waitlist', 'calendar'].includes(item.key)
 }), {});
 
 const emptySecretaryForm = {

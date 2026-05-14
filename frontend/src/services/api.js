@@ -59,6 +59,7 @@ api.interceptors.response.use(
             // Token expired or invalid on protected pages.
             const loginPath = getLoginPathForCurrentContext({ requestUrl, pathname });
             localStorage.removeItem('medicore-auth');
+            sessionStorage.removeItem('medicore-auth');
             clearPatientSession();
             window.location.href = loginPath;
         }

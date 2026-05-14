@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import api from '../services/api';
 import { useLanguageStore } from './languageStore';
 import { useThemeStore } from './themeStore';
@@ -31,6 +31,25 @@ const resetPublicPreferences = () => {
     useThemeStore.getState().resetTheme();
 };
 
+const AUTH_STORAGE_KEY = 'medicore-auth';
+const AUTH_REMEMBER_KEY = 'medicore-auth-remember';
+
+const authStorage = {
+    getItem: (name) => localStorage.getItem(name) || sessionStorage.getItem(name),
+    setItem: (name, value) => {
+        const shouldRemember = localStorage.getItem(AUTH_REMEMBER_KEY) !== 'false';
+        const primaryStorage = shouldRemember ? localStorage : sessionStorage;
+        const secondaryStorage = shouldRemember ? sessionStorage : localStorage;
+
+        primaryStorage.setItem(name, value);
+        secondaryStorage.removeItem(name);
+    },
+    removeItem: (name) => {
+        localStorage.removeItem(name);
+        sessionStorage.removeItem(name);
+    }
+};
+
 export const useAuthStore = create(
     persist(
         (set, get) => ({
@@ -41,9 +60,10 @@ export const useAuthStore = create(
             isAuthReady: false,
             error: null,
 
-            login: async (email, password) => {
+            login: async (email, password, rememberMe = true) => {
                 set({ isLoading: true, error: null });
                 try {
+                    localStorage.setItem(AUTH_REMEMBER_KEY, rememberMe ? 'true' : 'false');
                     const response = await api.post('/auth/login', { email, password });
                     const { user, token } = response.data.data;
                     const normalizedUser = normalizeAuthUser(user);
@@ -62,6 +82,9 @@ export const useAuthStore = create(
 
                     return { success: true };
                 } catch (error) {
+                    if (!rememberMe) {
+                        localStorage.removeItem(AUTH_REMEMBER_KEY);
+                    }
                     const message = error.response?.data?.message || 'Login failed';
                     set({ isLoading: false, error: message });
                     return { success: false, message };
@@ -90,6 +113,7 @@ export const useAuthStore = create(
                     isAuthReady: true,
                     error: null
                 });
+                localStorage.removeItem(AUTH_REMEMBER_KEY);
                 resetPublicPreferences();
             },
 
@@ -130,7 +154,9 @@ export const useAuthStore = create(
                     return { success: true };
                 } catch (error) {
                     delete api.defaults.headers.common['Authorization'];
-                    localStorage.removeItem('medicore-auth');
+                    localStorage.removeItem(AUTH_STORAGE_KEY);
+                    sessionStorage.removeItem(AUTH_STORAGE_KEY);
+                    localStorage.removeItem(AUTH_REMEMBER_KEY);
                     set(resetAuthState);
                     resetPublicPreferences();
                     return {
@@ -142,13 +168,16 @@ export const useAuthStore = create(
 
             clearAuth: () => {
                 delete api.defaults.headers.common['Authorization'];
-                localStorage.removeItem('medicore-auth');
+                localStorage.removeItem(AUTH_STORAGE_KEY);
+                sessionStorage.removeItem(AUTH_STORAGE_KEY);
+                localStorage.removeItem(AUTH_REMEMBER_KEY);
                 set(resetAuthState);
                 resetPublicPreferences();
             }
         }),
         {
-            name: 'medicore-auth',
+            name: AUTH_STORAGE_KEY,
+            storage: createJSONStorage(() => authStorage),
             partialize: (state) => ({
                 user: state.user,
                 token: state.token

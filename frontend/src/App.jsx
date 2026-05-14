@@ -20,6 +20,9 @@ import PatientSettings from './pages/patient/PatientSettings';
 import BookAppointment from './pages/patient/BookAppointment';
 import DoctorsPage from './pages/patient/DoctorsPage';
 import DoctorProfile from './pages/patient/DoctorProfile';
+import PatientAppointmentDetail from './pages/patient/PatientAppointmentDetail';
+import PatientNotifications from './pages/patient/PatientNotifications';
+import PatientInvoices from './pages/patient/PatientInvoices';
 
 // Dashboard Pages
 import Dashboard from './pages/Dashboard';
@@ -31,6 +34,7 @@ import PatientDetail from './pages/PatientDetail';
 import Appointments from './pages/Appointments';
 import Calendar from './pages/Calendar';
 import CalendarDay from './pages/CalendarDay';
+import Waitlist from './pages/Waitlist';
 import Teleconsultations from './pages/Teleconsultations';
 import Invoices from './pages/Invoices';
 import Analytics from './pages/Analytics';
@@ -47,6 +51,7 @@ import {
     PATIENT_LOGIN_PATH,
     STAFF_DASHBOARD_PATH,
     STAFF_LOGIN_PATH,
+    clearTransientPatientSession,
     isPatientSessionActive
 } from './utils/authRouting';
 
@@ -126,6 +131,7 @@ function App() {
     const initializeAuth = useAuthStore((state) => state.initializeAuth);
 
     useEffect(() => {
+        clearTransientPatientSession();
         initializeAuth();
     }, [initializeAuth]);
 
@@ -145,6 +151,9 @@ function App() {
                 <Route path="/patient/login" element={<PatientPublicRoute><PatientLogin /></PatientPublicRoute>} />
                 <Route path="/patient/register" element={<PatientPublicRoute><PatientRegister /></PatientPublicRoute>} />
                 <Route path="/patient/portal" element={<PatientProtectedRoute><PatientPortal /></PatientProtectedRoute>} />
+                <Route path="/patient/appointments/:id" element={<PatientProtectedRoute><PatientAppointmentDetail /></PatientProtectedRoute>} />
+                <Route path="/patient/notifications" element={<PatientProtectedRoute><PatientNotifications /></PatientProtectedRoute>} />
+                <Route path="/patient/invoices" element={<PatientProtectedRoute><PatientInvoices /></PatientProtectedRoute>} />
                 <Route path="/patient/edit-profile" element={<PatientProtectedRoute><EditProfile /></PatientProtectedRoute>} />
                 <Route path="/patient/settings" element={<PatientProtectedRoute><PatientSettings /></PatientProtectedRoute>} />
                 <Route path="/patient/book" element={<BookAppointment />} />
@@ -160,7 +169,9 @@ function App() {
                     <Route path="/patients/:id" element={<ModuleRoute moduleKey="patients"><PatientDetail /></ModuleRoute>} />
                     <Route path="/appointments" element={<ModuleRoute moduleKey="appointments"><Appointments /></ModuleRoute>} />
                     <Route path="/calendar" element={<ModuleRoute moduleKey="calendar"><Calendar /></ModuleRoute>} />
+                    <Route path="/admin/calendar" element={<ModuleRoute moduleKey="calendar"><Calendar adminPicker /></ModuleRoute>} />
                     <Route path="/calendar/day/:date" element={<ModuleRoute moduleKey="calendar"><CalendarDay /></ModuleRoute>} />
+                    <Route path="/waitlist" element={<ModuleRoute moduleKey="waitlist"><Waitlist /></ModuleRoute>} />
                     <Route path="/teleconsultations" element={<ModuleRoute moduleKey="teleconsultations"><Teleconsultations /></ModuleRoute>} />
                     <Route path="/reviews" element={<ModuleRoute moduleKey="reviews"><Reviews /></ModuleRoute>} />
                     <Route path="/invoices" element={<ModuleRoute moduleKey="billing"><Invoices /></ModuleRoute>} />

@@ -18,6 +18,7 @@ const {
 const { formatLocalDateTime } = require('../utils/dateTime');
 const { saveSubscription } = require('../services/webPushNotifications');
 const { createClinicRoleNotification, createNotification, createPlatformAdminNotification } = require('../services/notificationCenter');
+const { buildInvoicePdf } = require('../utils/invoicePdf');
 const {
     mapWaitlistEntry,
     offerNextWaitlistForSlot,
@@ -163,9 +164,10 @@ const ensurePatientClinicAssignment = async (patientId, clinicId, client = db) =
 // Helper: verify patient token
 const verifyPatientToken = (req) => {
     const authHeader = req.headers.authorization;
-    if (!authHeader) return null;
+    const queryToken = typeof req.query?.token === 'string' ? req.query.token : null;
+    if (!authHeader && !queryToken) return null;
     try {
-        const token = authHeader.split(' ')[1];
+        const token = queryToken || authHeader.split(' ')[1];
         return jwt.verify(token, process.env.JWT_SECRET);
     } catch { return null; }
 };
@@ -201,6 +203,31 @@ const getModeAvailability = (sessions) => ({
     inPerson: sessions.some((session) => session.enabled && isModeAllowedBySession(session.mode, 'in-person')),
     online: sessions.some((session) => session.enabled && isModeAllowedBySession(session.mode, 'online'))
 });
+
+const hasActivePatientRequestOnDay = async ({ client, patientId, date }) => {
+    const appointmentResult = await client.query(
+        `SELECT id
+         FROM appointments
+         WHERE patient_id = $1
+           AND DATE(start_time) = $2
+           AND status NOT IN ('cancelled', 'no_show')
+         LIMIT 1`,
+        [patientId, date]
+    );
+    if (appointmentResult.rows.length > 0) return true;
+
+    const waitlistResult = await client.query(
+        `SELECT id
+         FROM appointment_waitlist
+         WHERE patient_id = $1
+           AND DATE(desired_start_time) = $2
+           AND status IN ('pending', 'offered')
+         LIMIT 1`,
+        [patientId, date]
+    );
+
+    return waitlistResult.rows.length > 0;
+};
 
 // ─── Patient Registration ────────────────────────────────────────────
 router.post('/patient/register', [
@@ -314,6 +341,71 @@ router.post('/patient/login', [
     } catch (error) {
         console.error('Patient login error:', error);
         res.status(500).json({ success: false, message: 'Login failed' });
+    }
+});
+
+// ─── Patient Forgot Password ─────────────────────────────────────────
+router.post('/patient/forgot-password', [
+    body('email').isEmail().normalizeEmail()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, message: 'Valid email is required', errors: errors.array() });
+        }
+
+        const { email } = req.body;
+        const userResult = await db.query(
+            `SELECT id, email, first_name, last_name
+             FROM users
+             WHERE email = $1 AND role = 'patient' AND is_active = true`,
+            [email]
+        );
+
+        const genericMessage = 'If this patient account exists, a password reset request has been sent to the platform administrator.';
+
+        if (userResult.rows.length === 0) {
+            return res.json({ success: true, message: genericMessage });
+        }
+
+        const user = userResult.rows[0];
+        const existing = await db.query(
+            `SELECT id
+             FROM password_reset_requests
+             WHERE user_id = $1 AND status = 'pending'
+             ORDER BY requested_at DESC
+             LIMIT 1`,
+            [user.id]
+        );
+
+        if (existing.rows.length > 0) {
+            await db.query(
+                `UPDATE password_reset_requests
+                 SET requested_at = CURRENT_TIMESTAMP,
+                     temporary_password_set = false
+                 WHERE id = $1`,
+                [existing.rows[0].id]
+            );
+        } else {
+            await db.query(
+                `INSERT INTO password_reset_requests (user_id, email)
+                 VALUES ($1, $2)`,
+                [user.id, user.email]
+            );
+        }
+
+        createPlatformAdminNotification({
+            type: 'warning',
+            title: 'Réinitialisation patient demandée',
+            message: `${user.first_name} ${user.last_name} demande une réinitialisation de mot de passe.`,
+            url: '/admin/accounts',
+            metadata: { userId: user.id, event: 'patient_password_reset_requested' }
+        }).catch((error) => console.error('Failed to notify platform admins:', error));
+
+        res.json({ success: true, message: genericMessage });
+    } catch (error) {
+        console.error('Patient forgot password request error:', error);
+        res.status(500).json({ success: false, message: 'Failed to submit password reset request' });
     }
 });
 
@@ -661,6 +753,19 @@ router.post('/book-appointment', async (req, res) => {
                 return res.status(400).json({ success: false, message: 'Practitioner is not linked to a clinic' });
             }
 
+            const hasDailyRequest = await hasActivePatientRequestOnDay({
+                client,
+                patientId: decoded.patientId,
+                date
+            });
+            if (hasDailyRequest) {
+                await client.query('ROLLBACK');
+                return res.status(409).json({
+                    success: false,
+                    message: 'Vous avez déjà une demande ou un rendez-vous actif pour cette journée.'
+                });
+            }
+
             const mode = consultationMode || 'in-person';
             const isOnline = mode === 'online';
             if (isOnline && !dr.accepts_online) {
@@ -845,6 +950,19 @@ router.post('/waitlist', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Practitioner is not linked to a clinic' });
         }
 
+        const hasDailyRequest = await hasActivePatientRequestOnDay({
+            client,
+            patientId: decoded.patientId,
+            date
+        });
+        if (hasDailyRequest) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({
+                success: false,
+                message: 'Vous avez déjà une demande ou un rendez-vous actif pour cette journée.'
+            });
+        }
+
         const mode = consultationMode || 'in-person';
         if (mode === 'online' && !dr.accepts_online) {
             await client.query('ROLLBACK');
@@ -982,6 +1100,141 @@ router.get('/my-waitlist', async (req, res) => {
         res.status(500).json({ success: false, message: 'Failed to fetch waitlist' });
     } finally {
         client.release();
+    }
+});
+
+router.get('/my-invoices', async (req, res) => {
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        const result = await db.query(
+            `SELECT i.*, a.appointment_type, a.start_time, a.consultation_mode,
+                    u.first_name AS dr_first, u.last_name AS dr_last
+             FROM invoices i
+             LEFT JOIN appointments a ON a.id = i.appointment_id
+             LEFT JOIN users u ON u.id = i.practitioner_id
+             WHERE i.patient_id = $1
+             ORDER BY i.created_at DESC`,
+            [decoded.patientId]
+        );
+
+        res.json({
+            success: true,
+            data: result.rows.map((invoice) => ({
+                id: invoice.id,
+                invoiceNumber: invoice.invoice_number,
+                status: invoice.status,
+                subtotal: parseFloat(invoice.subtotal),
+                taxAmount: parseFloat(invoice.tax_amount),
+                totalAmount: parseFloat(invoice.total_amount),
+                paidAmount: parseFloat(invoice.paid_amount),
+                balance: parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount),
+                dueDate: invoice.due_date,
+                createdAt: invoice.created_at,
+                appointmentId: invoice.appointment_id,
+                appointmentType: invoice.appointment_type,
+                appointmentStart: invoice.start_time,
+                consultationMode: invoice.consultation_mode,
+                practitionerName: [invoice.dr_first, invoice.dr_last].filter(Boolean).join(' ') || null
+            }))
+        });
+    } catch (error) {
+        console.error('Patient invoices fetch error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch invoices' });
+    }
+});
+
+const getPatientInvoiceDetail = async ({ invoiceId, patientId }) => {
+    const result = await db.query(
+        `SELECT i.*, p.first_name, p.last_name, p.email AS patient_email, p.phone AS patient_phone,
+                a.appointment_type, a.start_time, a.end_time, a.consultation_mode,
+                u.first_name AS dr_first, u.last_name AS dr_last,
+                c.name AS clinic_name
+         FROM invoices i
+         LEFT JOIN patients p ON p.id = i.patient_id
+         LEFT JOIN appointments a ON a.id = i.appointment_id
+         LEFT JOIN users u ON u.id = i.practitioner_id
+         LEFT JOIN clinics c ON c.id = i.clinic_id
+         WHERE i.id = $1 AND i.patient_id = $2`,
+        [invoiceId, patientId]
+    );
+    if (result.rows.length === 0) return null;
+
+    const [items, payments] = await Promise.all([
+        db.query('SELECT * FROM invoice_items WHERE invoice_id = $1 ORDER BY created_at ASC', [invoiceId]),
+        db.query('SELECT * FROM payments WHERE invoice_id = $1 ORDER BY payment_date DESC', [invoiceId])
+    ]);
+
+    return { invoice: result.rows[0], items: items.rows, payments: payments.rows };
+};
+
+router.get('/my-invoices/:id/pdf', async (req, res) => {
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        const detail = await getPatientInvoiceDetail({ invoiceId: req.params.id, patientId: decoded.patientId });
+        if (!detail) return res.status(404).json({ success: false, message: 'Invoice not found' });
+
+        const pdf = buildInvoicePdf({
+            invoice: {
+                ...detail.invoice,
+                patient_name: `${detail.invoice.first_name || ''} ${detail.invoice.last_name || ''}`.trim()
+            },
+            items: detail.items,
+            payments: detail.payments
+        });
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${detail.invoice.invoice_number}.pdf"`);
+        res.send(pdf);
+    } catch (error) {
+        console.error('Patient invoice PDF error:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate invoice PDF' });
+    }
+});
+
+router.get('/my-invoices/:id', async (req, res) => {
+    try {
+        const decoded = verifyPatientToken(req);
+        if (!decoded?.patientId) return res.status(401).json({ success: false, message: 'Please log in' });
+
+        const detail = await getPatientInvoiceDetail({ invoiceId: req.params.id, patientId: decoded.patientId });
+        if (!detail) return res.status(404).json({ success: false, message: 'Invoice not found' });
+
+        const invoice = detail.invoice;
+        res.json({
+            success: true,
+            data: {
+                id: invoice.id,
+                invoiceNumber: invoice.invoice_number,
+                patientName: `${invoice.first_name || ''} ${invoice.last_name || ''}`.trim(),
+                patientEmail: invoice.patient_email,
+                patientPhone: invoice.patient_phone,
+                practitionerName: [invoice.dr_first, invoice.dr_last].filter(Boolean).join(' ') || null,
+                clinicName: invoice.clinic_name,
+                appointmentId: invoice.appointment_id,
+                appointmentType: invoice.appointment_type,
+                appointmentStart: invoice.start_time,
+                appointmentEnd: invoice.end_time,
+                consultationMode: invoice.consultation_mode,
+                status: invoice.status,
+                subtotal: parseFloat(invoice.subtotal),
+                taxAmount: parseFloat(invoice.tax_amount),
+                totalAmount: parseFloat(invoice.total_amount),
+                paidAmount: parseFloat(invoice.paid_amount),
+                balance: parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount),
+                dueDate: invoice.due_date,
+                createdAt: invoice.created_at,
+                notes: invoice.notes,
+                items: detail.items,
+                payments: detail.payments
+            }
+        });
+    } catch (error) {
+        console.error('Patient invoice detail error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch invoice' });
     }
 });
 
@@ -1281,6 +1534,7 @@ router.get('/my-appointments', async (req, res) => {
                     a.deposit_amount, a.total_amount, a.refunded,
                     a.reason_category, a.reason_detail, a.preparation_notes, a.requested_documents,
                     a.meeting_provider, a.meeting_status, a.meeting_created_at, a.meeting_last_sync_at,
+                    a.practitioner_id,
                     u.first_name as dr_first, u.last_name as dr_last, u.specialty
              FROM appointments a LEFT JOIN users u ON a.practitioner_id = u.id
              WHERE a.patient_id = $1 ORDER BY a.start_time DESC`, [decoded.patientId]
@@ -1298,6 +1552,7 @@ router.get('/my-appointments', async (req, res) => {
                     consultationMode: a.consultation_mode, meetLink: meeting.joinUrl,
                     paymentMode: a.payment_mode, paymentStatus: a.payment_status,
                     depositAmount: a.deposit_amount, totalAmount: a.total_amount, refunded: a.refunded,
+                    practitionerId: a.practitioner_id,
                     practitioner: `Dr. ${a.dr_first} ${a.dr_last}`, specialty: a.specialty,
                     meeting
                 };

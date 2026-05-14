@@ -5,6 +5,7 @@ export const STAFF_LOGIN_PATH = '/login';
 export const PATIENT_LOGIN_PATH = '/patient/login';
 export const STAFF_DASHBOARD_PATH = '/dashboard';
 export const PATIENT_DASHBOARD_PATH = '/patient/portal';
+export const PATIENT_REMEMBER_KEY = 'patient-session-remember';
 
 export const getGreeting = (date = new Date()) => {
     const hour = date.getHours();
@@ -52,8 +53,15 @@ export const getPublicDashboardTarget = ({ user, isAuthenticated, isAuthReady = 
 export const clearPatientSession = () => {
     localStorage.removeItem('patient-token');
     localStorage.removeItem('patient-user');
+    localStorage.removeItem(PATIENT_REMEMBER_KEY);
     useLanguageStore.getState().resetLanguage();
     useThemeStore.getState().resetTheme();
+};
+
+export const clearTransientPatientSession = () => {
+    if (localStorage.getItem(PATIENT_REMEMBER_KEY) === 'false') {
+        clearPatientSession();
+    }
 };
 
 export const getLoginPathForUser = (user) => (

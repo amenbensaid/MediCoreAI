@@ -524,6 +524,10 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS deposit_amount DECIMAL(10, 2) 
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10, 2) DEFAULT 0;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS refunded BOOLEAN DEFAULT false;
 
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS appointment_id UUID REFERENCES appointments(id) ON DELETE SET NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_appointment_id ON invoices(appointment_id) WHERE appointment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payments_clinic_date ON payments(clinic_id, payment_date DESC);
+
 CREATE TABLE IF NOT EXISTS appointment_notes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     appointment_id UUID REFERENCES appointments(id) ON DELETE CASCADE,
@@ -613,7 +617,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_clinic_role ON notifications(clinic
 WITH patient_clinic_source AS (
     SELECT
         patient_id,
-        MIN(clinic_id) AS clinic_id
+        MIN(clinic_id::text)::uuid AS clinic_id
     FROM appointments
     WHERE clinic_id IS NOT NULL
     GROUP BY patient_id

@@ -14,6 +14,7 @@ const PatientNavbar = ({ user, profile, onLogout }) => {
     const { setThemeScope } = useThemeStore();
     const [showNotifications, setShowNotifications] = useState(false);
     const [showUserDropdown, setShowUserDropdown] = useState(false);
+    const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const notificationsRef = useRef(null);
     const userDropdownRef = useRef(null);
@@ -98,11 +99,20 @@ const PatientNavbar = ({ user, profile, onLogout }) => {
 
                     {/* Navigation centrale */}
                     <nav className="hidden md:flex items-center gap-6">
+                        <Link to="/patient/portal" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
+                            {language === 'en' ? 'Dashboard' : 'Tableau de bord'}
+                        </Link>
                         <Link to="/doctors" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                             {t('nav.findDoctor')}
                         </Link>
                         <Link to="/patient/book" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
                             {t('nav.bookAppointment')}
+                        </Link>
+                        <Link to="/patient/notifications" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
+                            {t('common.notifications')}
+                        </Link>
+                        <Link to="/patient/invoices" className="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
+                            {language === 'en' ? 'Invoices' : 'Factures'}
                         </Link>
                     </nav>
 
@@ -172,7 +182,13 @@ const PatientNavbar = ({ user, profile, onLogout }) => {
                                         )}
                                     </div>
                                     <div className="p-3 border-t border-gray-200 dark:border-slate-700">
-                                        <button className="w-full text-center text-sm text-primary-500 hover:text-primary-600 font-medium">
+                                        <button
+                                            onClick={() => {
+                                                setShowNotifications(false);
+                                                navigate('/patient/notifications');
+                                            }}
+                                            className="w-full text-center text-sm text-primary-500 hover:text-primary-600 font-medium"
+                                        >
                                             {t('patient.viewAllNotifications')}
                                         </button>
                                     </div>
@@ -255,13 +271,42 @@ const PatientNavbar = ({ user, profile, onLogout }) => {
                         </div>
 
                         {/* Menu mobile */}
-                        <button className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 rounded-lg">
+                        <button
+                            onClick={() => setShowMobileMenu((value) => !value)}
+                            className="md:hidden p-2 text-gray-600 dark:text-gray-300 hover:text-primary-500 dark:hover:text-primary-400 rounded-lg"
+                            aria-label="Open patient navigation"
+                        >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                {showMobileMenu ? (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                ) : (
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                                )}
                             </svg>
                         </button>
                     </div>
                 </div>
+                {showMobileMenu && (
+                    <nav className="md:hidden border-t border-gray-100 py-3 dark:border-slate-700">
+                        {[
+                            { to: '/patient/portal', label: language === 'en' ? 'Dashboard' : 'Tableau de bord' },
+                            { to: '/doctors', label: t('nav.findDoctor') },
+                            { to: '/patient/book', label: t('nav.bookAppointment') },
+                            { to: '/patient/notifications', label: t('common.notifications') },
+                            { to: '/patient/invoices', label: language === 'en' ? 'Invoices' : 'Factures' },
+                            { to: '/patient/settings', label: t('common.settings') }
+                        ].map((item) => (
+                            <Link
+                                key={item.to}
+                                to={item.to}
+                                onClick={() => setShowMobileMenu(false)}
+                                className="block rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-primary-50 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-slate-700"
+                            >
+                                {item.label}
+                            </Link>
+                        ))}
+                    </nav>
+                )}
             </div>
         </header>
     );
