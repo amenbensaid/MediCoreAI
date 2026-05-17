@@ -29,6 +29,8 @@ import Dashboard from './pages/Dashboard';
 import Patients from './pages/Patients';
 import Animals from './pages/Animals';
 import AdminDoctors from './pages/AdminDoctors';
+import Secretaries from './pages/Secretaries';
+import Accountants from './pages/Accountants';
 import PlatformAccounts from './pages/PlatformAccounts';
 import PatientDetail from './pages/PatientDetail';
 import Appointments from './pages/Appointments';
@@ -165,6 +167,8 @@ function App() {
                     <Route path="/patients" element={<ModuleRoute moduleKey="patients"><Patients /></ModuleRoute>} />
                     <Route path="/admin/doctors" element={<ModuleRoute moduleKey="adminDoctors"><AdminDoctors /></ModuleRoute>} />
                     <Route path="/admin/accounts" element={<ModuleRoute moduleKey="platformAccounts"><PlatformAccounts /></ModuleRoute>} />
+                    <Route path="/secretaries" element={<ModuleRoute moduleKey="secretaries"><Secretaries /></ModuleRoute>} />
+                    <Route path="/accountants" element={<ModuleRoute moduleKey="accountants"><Accountants /></ModuleRoute>} />
                     <Route path="/animals" element={<ModuleRoute moduleKey="animals"><Animals /></ModuleRoute>} />
                     <Route path="/patients/:id" element={<ModuleRoute moduleKey="patients"><PatientDetail /></ModuleRoute>} />
                     <Route path="/appointments" element={<ModuleRoute moduleKey="appointments"><Appointments /></ModuleRoute>} />

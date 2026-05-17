@@ -45,13 +45,9 @@ const toMoney = (value, fallback = 0) => {
     return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : fallback;
 };
 
-const buildInvoiceNumber = async (client, clinicId) => {
-    const countResult = await client.query(
-        'SELECT COUNT(*) AS total FROM invoices WHERE clinic_id = $1',
-        [clinicId]
-    );
-
-    return `INV-${new Date().getFullYear()}-${String(Number(countResult.rows[0]?.total || 0) + 1).padStart(5, '0')}`;
+const buildInvoiceNumber = (appointmentId) => {
+    const shortId = appointmentId.replace(/-/g, '').substring(0, 8).toUpperCase();
+    return `INV-${new Date().getFullYear()}-${shortId}`;
 };
 
 const resolveAppointmentAmount = async (client, appointment) => {
@@ -92,7 +88,7 @@ const ensureAppointmentInvoice = async (client, appointment) => {
 
     const totalAmount = await resolveAppointmentAmount(client, appointment);
     const targetPaidAmount = getPaidTargetForAppointment(appointment, totalAmount);
-    const existingResult = await client.query(
+    let existingResult = await client.query(
         `SELECT *
          FROM invoices
          WHERE appointment_id = $1 AND clinic_id = $2
@@ -100,9 +96,18 @@ const ensureAppointmentInvoice = async (client, appointment) => {
         [appointment.id, appointment.clinic_id]
     );
 
+    // Fallback: find by UUID-based invoice number (for invoices created before appointment_id was linked)
+    if (!existingResult.rows[0]) {
+        const expectedNumber = buildInvoiceNumber(appointment.id);
+        existingResult = await client.query(
+            `SELECT * FROM invoices WHERE invoice_number = $1 AND clinic_id = $2 FOR UPDATE`,
+            [expectedNumber, appointment.clinic_id]
+        );
+    }
+
     let invoice = existingResult.rows[0] || null;
     if (!invoice) {
-        const invoiceNumber = await buildInvoiceNumber(client, appointment.clinic_id);
+        const invoiceNumber = buildInvoiceNumber(appointment.id);
         const invoiceStatus = targetPaidAmount >= totalAmount
             ? 'paid'
             : targetPaidAmount > 0
@@ -951,6 +956,13 @@ router.put('/:id', authMiddleware, async (req, res) => {
             }
 
             const current = currentResult.rows[0];
+
+            const secretaryOnlyStatuses = ['confirmed', 'scheduled', 'awaiting_approval'];
+            if (req.user.role === 'practitioner' && status && secretaryOnlyStatuses.includes(status)) {
+                await client.query('ROLLBACK');
+                return res.status(403).json({ success: false, message: 'Only the secretary can confirm or schedule appointments' });
+            }
+
             const nextStartTime = startTime || current.start_time;
             const nextEndTime = endTime || current.end_time;
             const nextConsultationMode = consultationMode || current.consultation_mode;

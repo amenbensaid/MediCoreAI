@@ -162,19 +162,23 @@ export default function Waitlist() {
         }
     }, [filter, selectedPractitionerId, t.error]);
 
+    const isClinicAdmin = user?.role === 'admin' || user?.clinicRole === 'admin';
+
     const loadPractitioners = useCallback(async () => {
         try {
-            const [response, waitlistResponse] = await Promise.all([
-                api.get('/users/practitioners/admin', { params: { status: 'active' } }),
+            const [practitionersResult, waitlistResponse] = await Promise.all([
+                isClinicAdmin
+                    ? api.get('/users/practitioners/admin', { params: { status: 'active' } })
+                    : Promise.resolve({ data: { data: [] } }),
                 api.get('/appointments/waitlist', { params: { status: 'active' } })
             ]);
-            setPractitioners(response.data.data || []);
+            setPractitioners(practitionersResult.data.data || []);
             setOverviewEntries(waitlistResponse.data.data || []);
         } catch (error) {
             setPractitioners([]);
             setOverviewEntries([]);
         }
-    }, []);
+    }, [isClinicAdmin]);
 
     useEffect(() => {
         loadWaitlist();

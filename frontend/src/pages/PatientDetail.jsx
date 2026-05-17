@@ -3,11 +3,14 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Avatar from '../components/ui/Avatar';
 import { useI18n } from '../stores/languageStore';
+import { useAuthStore } from '../stores/authStore';
 
 const PatientDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { language, t } = useI18n();
+    const { user } = useAuthStore();
+    const isPractitioner = user?.role === 'practitioner';
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('overview');
@@ -54,7 +57,7 @@ const PatientDetail = () => {
         { id: 'overview', name: t('staffPatients.detail.tabs.overview'), icon: '📋' },
         { id: 'appointments', name: t('staffPatients.detail.tabs.appointments'), icon: '📅' },
         { id: 'records', name: t('staffPatients.detail.tabs.records'), icon: '🏥' },
-        { id: 'invoices', name: t('staffPatients.detail.tabs.invoices'), icon: '💳' },
+        ...(!isPractitioner ? [{ id: 'invoices', name: t('staffPatients.detail.tabs.invoices'), icon: '💳' }] : []),
     ];
 
     return (

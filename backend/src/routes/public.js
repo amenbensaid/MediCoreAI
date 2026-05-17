@@ -426,7 +426,9 @@ router.get('/practitioners', async (req, res) => {
                         WHERE is_visible = true
                         GROUP BY practitioner_id
                      ) rs ON rs.practitioner_id = u.id
-                     WHERE u.role = 'practitioner' AND u.is_active = true`;
+                     LEFT JOIN user_clinics uc ON uc.user_id = u.id
+                     WHERE u.role = 'practitioner' AND u.is_active = true
+                     AND (uc.role IS NULL OR uc.role != 'admin')`;
         const params = [];
         if (specialty && specialty !== 'all') {
             params.push(`%${specialty}%`);
@@ -867,6 +869,37 @@ router.post('/book-appointment', async (req, res) => {
                     resolvedAppointmentType, notes || '', mode, reasonCategory || null, reasonDetail || null, meetLink, googleEventId,
                     paymentMode, paymentStatus, depositAmount, fee, meetingProvider, meetingStatus, meetingCreatedAt, meetingLastSyncAt]
             );
+
+            // Auto-create invoice for every booking
+            const appointmentId = result.rows[0].id;
+            {
+                const appointmentShortId = appointmentId.replace(/-/g, '').substring(0, 8).toUpperCase();
+                const invoiceNumber = `INV-${new Date().getFullYear()}-${appointmentShortId}`;
+                const invoiceStatus = paymentStatus === 'paid' ? 'paid'
+                    : paymentStatus === 'deposit-paid' ? 'partial'
+                    : 'draft';
+                const invoiceResult = await client.query(
+                    `INSERT INTO invoices (invoice_number, clinic_id, patient_id, practitioner_id, appointment_id,
+                     subtotal, tax_amount, total_amount, paid_amount, status, due_date, notes)
+                     VALUES ($1,$2,$3,$4,$5,$6,0,$6,$7,$8,$9,$10) RETURNING id`,
+                    [invoiceNumber, clinicId, decoded.patientId, practitionerId, appointmentId,
+                     fee, depositAmount, invoiceStatus,
+                     date, `Rendez-vous: ${resolvedAppointmentType}`]
+                );
+                const invoiceId = invoiceResult.rows[0].id;
+                await client.query(
+                    `INSERT INTO invoice_items (invoice_id, description, quantity, unit_price, tax_rate, total)
+                     VALUES ($1,$2,1,$3,0,$3)`,
+                    [invoiceId, resolvedAppointmentType, fee]
+                );
+                if (depositAmount > 0) {
+                    await client.query(
+                        `INSERT INTO payments (invoice_id, clinic_id, amount, payment_method, notes)
+                         VALUES ($1,$2,$3,'online',$4)`,
+                        [invoiceId, clinicId, depositAmount, 'Paiement en ligne patient']
+                    );
+                }
+            }
 
             await client.query('COMMIT');
 

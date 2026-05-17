@@ -139,6 +139,8 @@ const DashboardLayout = () => {
             items: [
                 ...(canAccessModule(user, 'platformAccounts') ? [{ name: t('nav.manageUsers'), href: '/admin/accounts', icon: UsersIcon }] : []),
                 ...(isAdmin ? [{ name: t('nav.adminDoctors'), href: '/admin/doctors', icon: UserBadgeIcon }] : []),
+                ...(canAccessModule(user, 'secretaries') ? [{ name: 'Secrétaires', href: '/secretaries', icon: UsersIcon }] : []),
+                ...(canAccessModule(user, 'accountants') ? [{ name: 'Comptables', href: '/accountants', icon: CalculatorIcon }] : []),
                 ...(isAdmin ? [{ name: t('nav.demoRequests'), href: '/admin/demo-requests', icon: ClipboardCheckIcon }] : [])
             ]
         },
@@ -603,6 +605,12 @@ const ClipboardCheckIcon = (props) => (
 const HourglassIcon = (props) => (
     <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 3h12M6 21h12M8 3v4a4 4 0 001.172 2.828L12 12l2.828-2.172A4 4 0 0016 7V3M8 21v-4a4 4 0 011.172-2.828L12 12l2.828 2.172A4 4 0 0116 17v4" />
+    </svg>
+);
+
+const CalculatorIcon = (props) => (
+    <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7H6a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-3M16 3h2a2 2 0 012 2v2M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M3 3l18 18" />
     </svg>
 );
 

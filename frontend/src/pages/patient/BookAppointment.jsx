@@ -55,6 +55,7 @@ const BookAppointment = () => {
     const [viewMode, setViewMode] = useState('grid'); // grid, list
     const [showCalendar, setShowCalendar] = useState(false);
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [findingNext, setFindingNext] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('patient-token');
@@ -75,11 +76,13 @@ const BookAppointment = () => {
             } else {
                 setConsultationMode('in-person');
             }
-            setSelectedDate('');
             setSelectedSlot('');
             setReasonCategory('');
             setReasonDetail('');
             setSlots([]);
+            // Auto-select the next weekday so slots load immediately
+            const nextWeekday = getNextWeekday();
+            setSelectedDate(nextWeekday);
         }
     }, [selectedPractitioner]);
 
@@ -88,6 +91,46 @@ const BookAppointment = () => {
             fetchSlots(selectedDate);
         }
     }, [selectedDate, consultationMode, appointmentType]);
+
+    const toLocalDateStr = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    // Returns the nearest upcoming weekday date string (Mon-Fri), starting from tomorrow
+    const getNextWeekday = () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1); // start from tomorrow
+        while (d.getDay() === 0 || d.getDay() === 6) {
+            d.setDate(d.getDate() + 1);
+        }
+        return toLocalDateStr(d);
+    };
+
+    const findNextAvailableDate = async () => {
+        if (!selectedPractitioner) return;
+        setFindingNext(true);
+        const today = new Date();
+        for (let i = 1; i <= 30; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            const dateStr = toLocalDateStr(date);
+            try {
+                const res = await api.get('/public/available-slots', {
+                    params: { practitionerId: selectedPractitioner.id, date: dateStr, consultationMode }
+                });
+                const available = res.data.data.filter(s => s.available);
+                if (available.length > 0) {
+                    handleDateChange(dateStr);
+                    setFindingNext(false);
+                    return;
+                }
+            } catch (e) { /* continue */ }
+        }
+        setFindingNext(false);
+    };
 
     const fetchPractitioners = async () => {
         try {
@@ -120,7 +163,7 @@ const BookAppointment = () => {
         for (let i = 0; i < 7; i++) {
             const date = new Date(startDate);
             date.setDate(date.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = toLocalDateStr(date);
             
             try {
                 const res = await api.get('/public/available-slots', {
@@ -180,7 +223,7 @@ const BookAppointment = () => {
     const policy = selectedPractitioner?.paymentPolicy || 'full-onsite';
     const deposit = policy === 'deposit-30' ? fee * 0.3 : 0;
     const isOnline = consultationMode === 'online';
-    const today = new Date().toISOString().split('T')[0];
+    const today = toLocalDateStr(new Date());
     const selectedTypeConfig = appointmentTypes.find(t => t.name === appointmentType);
     const calendarSettings = selectedPractitioner?.calendar || {};
     const durationMinutes = slots.find((slot) => slot.time === selectedSlot)?.durationMinutes || calendarSettings.defaultDurationMinutes || 30;
@@ -571,10 +614,10 @@ const BookAppointment = () => {
                                     <div className="mb-4">
                                         <label className="mb-3 block text-sm font-bold text-slate-700">Date de consultation</label>
                                         <div className="flex items-center gap-3">
-                                            <input 
-                                                type="date" 
-                                                min={new Date().toISOString().split('T')[0]} 
-                                                value={selectedDate} 
+                                            <input
+                                                type="date"
+                                                min={toLocalDateStr(new Date())}
+                                                value={selectedDate}
                                                 onChange={(e) => handleDateChange(e.target.value)}
                                                 className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" 
                                             />
@@ -589,24 +632,39 @@ const BookAppointment = () => {
                                         </div>
                                     </div>
 
-                                    {/* Quick date selection */}
+                                    {/* Quick date selection — only weekdays */}
                                     <div className="flex flex-wrap gap-2">
-                                        {['Aujourd\'hui', 'Demain', 'Cette semaine', 'La semaine prochaine'].map((label, index) => {
-                                            const date = new Date();
-                                            if (index === 1) date.setDate(date.getDate() + 1);
-                                            else if (index === 2) date.setDate(date.getDate() + 7);
-                                            else if (index === 3) date.setDate(date.getDate() + 14);
-                                            
-                                            return (
+                                        {(() => {
+                                            // Build 4 upcoming weekdays starting from tomorrow
+                                            const quickDates = [];
+                                            const cursor = new Date();
+                                            cursor.setDate(cursor.getDate() + 1);
+                                            while (quickDates.length < 4) {
+                                                if (cursor.getDay() !== 0 && cursor.getDay() !== 6) {
+                                                    const label = quickDates.length === 0
+                                                        ? 'Demain'
+                                                        : cursor.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+                                                    quickDates.push({ label, date: new Date(cursor) });
+                                                }
+                                                cursor.setDate(cursor.getDate() + 1);
+                                            }
+                                            return quickDates.map(({ label, date }) => (
                                                 <button
                                                     key={label}
-                                                    onClick={() => handleDateChange(date.toISOString().split('T')[0])}
-                                                    className="px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 transition"
+                                                    onClick={() => handleDateChange(toLocalDateStr(date))}
+                                                    className={`px-3 py-2 text-sm rounded-xl border transition ${toLocalDateStr(date) === selectedDate ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700'}`}
                                                 >
                                                     {label}
                                                 </button>
-                                            );
-                                        })}
+                                            ));
+                                        })()}
+                                        <button
+                                            onClick={findNextAvailableDate}
+                                            disabled={findingNext || !selectedPractitioner}
+                                            className="px-3 py-2 text-sm rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition font-semibold disabled:opacity-50"
+                                        >
+                                            {findingNext ? 'Recherche...' : '⚡ Prochain dispo'}
+                                        </button>
                                     </div>
                                 </Card>
 
@@ -639,21 +697,34 @@ const BookAppointment = () => {
                                             <div className="spinner" />
                                         </div>
                                     ) : slots.length === 0 ? (
-                                        <div className="text-center py-12">
-                                            <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
-                                                <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                            </div>
-                                            <p className="text-slate-500">Aucun créneau disponible pour cette date et ce mode</p>
-                                            <p className="mt-2 text-xs text-slate-400">
-                                                Les séances sont définies par le médecin dans son calendrier.
-                                            </p>
+                                        <div className="text-center py-10">
+                                            {(() => {
+                                                const d = new Date(selectedDate + 'T00:00:00');
+                                                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                                                return isWeekend ? (
+                                                    <>
+                                                        <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center text-2xl">🏖️</div>
+                                                        <p className="font-bold text-slate-700">Pas de consultation le week-end</p>
+                                                        <p className="mt-1 text-sm text-slate-500">Ce médecin consulte du lundi au vendredi.</p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                                                            <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </div>
+                                                        <p className="font-bold text-slate-700">Aucun créneau disponible ce jour</p>
+                                                        <p className="mt-1 text-sm text-slate-500">Tous les créneaux sont pris ou hors des horaires.</p>
+                                                    </>
+                                                );
+                                            })()}
                                             <button
-                                                onClick={() => setShowCalendar(true)}
-                                                className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-semibold"
+                                                onClick={findNextAvailableDate}
+                                                disabled={findingNext}
+                                                className="mt-4 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition"
                                             >
-                                                Voir d'autres dates
+                                                {findingNext ? 'Recherche...' : '⚡ Trouver le prochain créneau disponible'}
                                             </button>
                                         </div>
                                     ) : (

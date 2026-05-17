@@ -41,6 +41,11 @@ export const canAccessModule = (user, moduleKey) => {
             return clinicType === 'dental';
         case 'aesthetic':
             return clinicType === 'aesthetic';
+        case 'billing':
+        case 'analytics':
+            return user.role !== 'practitioner';
+        case 'secretaries':
+        case 'accountants':
         case 'demoRequests':
         case 'adminDoctors':
             return isClinicAdmin(user);

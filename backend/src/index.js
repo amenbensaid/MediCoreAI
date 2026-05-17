@@ -145,16 +145,23 @@ const sendStaffInvoicePdf = async (req, res) => {
     }
 };
 
-app.get('/api/invoice-pdf/:id', authMiddleware, sendStaffInvoicePdf);
-app.get('/api/invoices/:id/pdf', authMiddleware, sendStaffInvoicePdf);
+const denyRole = (...roles) => (req, res, next) => {
+    if (req.user && roles.includes(req.user.role)) {
+        return res.status(403).json({ success: false, message: 'Access denied for your role' });
+    }
+    next();
+};
+
+app.get('/api/invoice-pdf/:id', authMiddleware, denyRole('practitioner'), sendStaffInvoicePdf);
+app.get('/api/invoices/:id/pdf', authMiddleware, denyRole('practitioner'), sendStaffInvoicePdf);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/invoices', invoiceRoutes);
+app.use('/api/appointments', authMiddleware, denyRole('accountant'), appointmentRoutes);
+app.use('/api/invoices', authMiddleware, denyRole('practitioner'), invoiceRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/analytics', analyticsRoutes);
+app.use('/api/analytics', authMiddleware, denyRole('practitioner'), analyticsRoutes);
 app.use('/api/clinics', clinicRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/documents', documentRoutes);

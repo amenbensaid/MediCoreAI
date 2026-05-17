@@ -72,6 +72,19 @@ const secretaryPermissionDefaults = {
     settings: false
 };
 
+const accountantPermissionDefaults = {
+    dashboard: true,
+    patients: false,
+    appointments: false,
+    waitlist: false,
+    calendar: false,
+    teleconsultations: false,
+    reviews: false,
+    billing: true,
+    analytics: true,
+    settings: false
+};
+
 const platformPermissionDefaults = {
     dashboard: true,
     platformAccounts: false,
@@ -99,6 +112,13 @@ const normalizeSecretaryPermissions = (permissions = {}) => Object.fromEntries(
     ])
 );
 
+const normalizeAccountantPermissions = (permissions = {}) => Object.fromEntries(
+    Object.keys(accountantPermissionDefaults).map((key) => [
+        key,
+        Boolean(permissions[key] ?? accountantPermissionDefaults[key])
+    ])
+);
+
 const normalizePlatformPermissions = (permissions = {}) => Object.fromEntries(
     Object.keys(platformPermissionDefaults).map((key) => [
         key,
@@ -117,7 +137,25 @@ const buildSecretaryPayload = (row) => ({
     practitionerName: row.practitioner_first_name
         ? `Dr. ${row.practitioner_first_name} ${row.practitioner_last_name}`
         : null,
+    clinicName: row.clinic_name || null,
     permissions: normalizeSecretaryPermissions(row.access_permissions || {}),
+    createdAt: row.created_at,
+    lastLogin: row.last_login
+});
+
+const buildAccountantPayload = (row) => ({
+    id: row.id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    email: row.email,
+    phone: row.phone || '',
+    isActive: Boolean(row.is_active),
+    practitionerId: row.assigned_practitioner_id || null,
+    practitionerName: row.practitioner_first_name
+        ? `Dr. ${row.practitioner_first_name} ${row.practitioner_last_name}`
+        : null,
+    clinicName: row.clinic_name || null,
+    permissions: normalizeAccountantPermissions(row.access_permissions || {}),
     createdAt: row.created_at,
     lastLogin: row.last_login
 });
@@ -1063,7 +1101,7 @@ router.post('/platform/accounts', authMiddleware, requireRole('admin'), [
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
     body('firstName').trim().notEmpty().withMessage('First name is required'),
     body('lastName').trim().notEmpty().withMessage('Last name is required'),
-    body('role').isIn(['admin', 'practitioner', 'patient', 'secretary']).withMessage('Invalid role')
+    body('role').isIn(['admin', 'practitioner', 'patient', 'secretary', 'accountant']).withMessage('Invalid role')
 ], async (req, res) => {
     try {
         const message = getValidationMessage(req);
@@ -1114,7 +1152,7 @@ router.post('/platform/accounts', authMiddleware, requireRole('admin'), [
 router.put('/platform/accounts/:id', authMiddleware, requireRole('admin'), async (req, res) => {
     try {
         const { firstName, lastName, phone, role, specialty, avatarUrl, isActive, isVerified, password, permissions } = req.body;
-        const normalizedRole = ['admin', 'practitioner', 'patient', 'secretary'].includes(role) ? role : undefined;
+        const normalizedRole = ['admin', 'practitioner', 'patient', 'secretary', 'accountant'].includes(role) ? role : undefined;
         const normalizedPermissions = permissions ? normalizePlatformPermissions(permissions) : null;
         const normalizedAvatarUrl = avatarUrl === undefined ? undefined : normalizeAvatarUrl(avatarUrl);
         const params = [
@@ -1187,9 +1225,11 @@ router.get('/secretaries', authMiddleware, async (req, res) => {
             `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.is_active,
                     u.access_permissions, u.assigned_practitioner_id, u.created_at, u.last_login,
                     practitioner.first_name AS practitioner_first_name,
-                    practitioner.last_name AS practitioner_last_name
+                    practitioner.last_name AS practitioner_last_name,
+                    c.name AS clinic_name
              FROM users u
              JOIN user_clinics uc ON uc.user_id = u.id
+             JOIN clinics c ON c.id = uc.clinic_id
              LEFT JOIN users practitioner ON practitioner.id = u.assigned_practitioner_id
              WHERE uc.clinic_id = $1 AND u.role = 'secretary'
                ${practitionerClause}
@@ -1837,6 +1877,205 @@ router.delete('/practitioners/:id', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Failed to deactivate practitioner:', error);
         res.status(500).json({ success: false, message: 'Failed to deactivate practitioner' });
+    }
+});
+
+router.get('/accountants', authMiddleware, async (req, res) => {
+    if (!isClinicAdminUser(req.user)) {
+        return res.status(403).json({ success: false, message: 'Clinic admin access required' });
+    }
+
+    try {
+        const result = await db.query(
+            `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.is_active,
+                    u.access_permissions, u.assigned_practitioner_id, u.created_at, u.last_login,
+                    practitioner.first_name AS practitioner_first_name,
+                    practitioner.last_name AS practitioner_last_name,
+                    c.name AS clinic_name
+             FROM users u
+             JOIN user_clinics uc ON uc.user_id = u.id
+             JOIN clinics c ON c.id = uc.clinic_id
+             LEFT JOIN users practitioner ON practitioner.id = u.assigned_practitioner_id
+             WHERE uc.clinic_id = $1 AND u.role = 'accountant'
+             ORDER BY u.created_at DESC`,
+            [req.user.clinicId]
+        );
+
+        res.json({ success: true, data: result.rows.map(buildAccountantPayload) });
+    } catch (error) {
+        console.error('Failed to fetch accountants:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch accountants' });
+    }
+});
+
+router.post('/accountants', authMiddleware, [
+    body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    body('firstName').trim().notEmpty().withMessage('First name is required'),
+    body('lastName').trim().notEmpty().withMessage('Last name is required')
+], async (req, res) => {
+    if (!isClinicAdminUser(req.user)) {
+        return res.status(403).json({ success: false, message: 'Clinic admin access required' });
+    }
+
+    const message = getValidationMessage(req);
+    if (message) return res.status(400).json({ success: false, message });
+
+    const { email, password, firstName, lastName, phone, permissions, practitionerId } = req.body;
+    const normalizedPermissions = normalizeAccountantPermissions(permissions);
+    const client = await db.getClient();
+
+    try {
+        await client.query('BEGIN');
+
+        const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (existing.rows.length > 0) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ success: false, message: 'Email already registered' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const userResult = await client.query(
+            `INSERT INTO users (
+                email, password_hash, first_name, last_name, phone, role,
+                is_verified, access_permissions, created_by_user_id, assigned_practitioner_id
+             ) VALUES ($1,$2,$3,$4,$5,'accountant',true,$6,$7,$8)
+             RETURNING id, email, first_name, last_name, phone, is_active,
+                       access_permissions, assigned_practitioner_id, created_at, last_login`,
+            [email, passwordHash, firstName, lastName, phone || null,
+             JSON.stringify(normalizedPermissions), req.user.id, practitionerId || null]
+        );
+
+        await client.query(
+            `INSERT INTO user_clinics (user_id, clinic_id, role) VALUES ($1, $2, 'staff')`,
+            [userResult.rows[0].id, req.user.clinicId]
+        );
+
+        await client.query('COMMIT');
+
+        const fullRow = await db.query(
+            `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.is_active,
+                    u.access_permissions, u.assigned_practitioner_id, u.created_at, u.last_login,
+                    p.first_name AS practitioner_first_name, p.last_name AS practitioner_last_name,
+                    c.name AS clinic_name
+             FROM users u
+             JOIN user_clinics uc ON uc.user_id = u.id
+             JOIN clinics c ON c.id = uc.clinic_id
+             LEFT JOIN users p ON p.id = u.assigned_practitioner_id
+             WHERE u.id = $1`,
+            [userResult.rows[0].id]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Accountant account created',
+            data: {
+                accountant: buildAccountantPayload(fullRow.rows[0]),
+                credentials: { email, password }
+            }
+        });
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Failed to create accountant:', error);
+        res.status(500).json({ success: false, message: 'Failed to create accountant' });
+    } finally {
+        client.release();
+    }
+});
+
+router.put('/accountants/:id', authMiddleware, async (req, res) => {
+    if (!isClinicAdminUser(req.user)) {
+        return res.status(403).json({ success: false, message: 'Clinic admin access required' });
+    }
+
+    const { firstName, lastName, phone, permissions, isActive, password, practitionerId } = req.body;
+    const normalizedPermissions = permissions ? normalizeAccountantPermissions(permissions) : null;
+
+    try {
+        if (password && String(password).length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+        }
+
+        const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+
+        const result = await db.query(
+            `UPDATE users u
+             SET first_name = COALESCE($1, first_name),
+                 last_name = COALESCE($2, last_name),
+                 phone = COALESCE($3, phone),
+                 access_permissions = COALESCE($4, access_permissions),
+                 is_active = COALESCE($5, is_active),
+                 assigned_practitioner_id = CASE WHEN $6::text IS NULL THEN assigned_practitioner_id ELSE NULLIF($6::text,'')::uuid END,
+                 password_hash = COALESCE($7, password_hash),
+                 updated_at = CURRENT_TIMESTAMP
+             FROM user_clinics uc
+             WHERE u.id = $8
+               AND uc.user_id = u.id
+               AND uc.clinic_id = $9
+               AND u.role = 'accountant'
+             RETURNING u.id`,
+            [
+                firstName || null,
+                lastName || null,
+                phone ?? null,
+                normalizedPermissions ? JSON.stringify(normalizedPermissions) : null,
+                typeof isActive === 'boolean' ? isActive : null,
+                practitionerId !== undefined ? (practitionerId || '') : null,
+                passwordHash,
+                req.params.id,
+                req.user.clinicId
+            ]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Accountant not found' });
+        }
+
+        const fullRow = await db.query(
+            `SELECT u.id, u.email, u.first_name, u.last_name, u.phone, u.is_active,
+                    u.access_permissions, u.assigned_practitioner_id, u.created_at, u.last_login,
+                    p.first_name AS practitioner_first_name, p.last_name AS practitioner_last_name,
+                    c.name AS clinic_name
+             FROM users u
+             JOIN user_clinics uc ON uc.user_id = u.id
+             JOIN clinics c ON c.id = uc.clinic_id
+             LEFT JOIN users p ON p.id = u.assigned_practitioner_id
+             WHERE u.id = $1`,
+            [result.rows[0].id]
+        );
+
+        res.json({ success: true, message: 'Accountant updated', data: buildAccountantPayload(fullRow.rows[0]) });
+    } catch (error) {
+        console.error('Failed to update accountant:', error);
+        res.status(500).json({ success: false, message: 'Failed to update accountant' });
+    }
+});
+
+router.delete('/accountants/:id', authMiddleware, async (req, res) => {
+    if (!isClinicAdminUser(req.user)) {
+        return res.status(403).json({ success: false, message: 'Clinic admin access required' });
+    }
+
+    try {
+        const result = await db.query(
+            `DELETE FROM users u
+             USING user_clinics uc
+             WHERE u.id = $1
+               AND uc.user_id = u.id
+               AND uc.clinic_id = $2
+               AND u.role = 'accountant'
+             RETURNING u.id`,
+            [req.params.id, req.user.clinicId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Accountant not found' });
+        }
+
+        res.json({ success: true, message: 'Accountant deleted' });
+    } catch (error) {
+        console.error('Failed to delete accountant:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete accountant' });
     }
 });
 

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import Avatar from '../components/ui/Avatar';
 import { useI18n } from '../stores/languageStore';
+import { useAuthStore } from '../stores/authStore';
 
 const formatDateTimeInput = (date) => {
     if (!date || Number.isNaN(date.getTime())) {
@@ -40,6 +41,8 @@ const addMinutesToInputValue = (value, minutes) => {
 const Appointments = () => {
     const [searchParams] = useSearchParams();
     const { language, t } = useI18n();
+    const { user } = useAuthStore();
+    const isPractitioner = user?.role === 'practitioner';
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -452,7 +455,7 @@ const Appointments = () => {
                                         <div className="flex flex-col items-end gap-2">
                                             {getStatusBadge(apt.status)}
                                             <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
-                                                {['scheduled', 'awaiting_approval'].includes(apt.status) && (
+                                                {!isPractitioner && ['scheduled', 'awaiting_approval'].includes(apt.status) && (
                                                     <button
                                                         onClick={() => setConfirmingAppointment(apt)}
                                                         disabled={syncingAppointmentId === apt.id}
